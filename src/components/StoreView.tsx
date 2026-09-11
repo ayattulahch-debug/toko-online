@@ -1,0 +1,174 @@
+import { useState } from 'react'
+import {
+  ChevronLeft,
+  Crown,
+  Home as HomeIcon,
+  MapPin,
+  MessageSquare,
+  Search,
+  Settings,
+  Star,
+  Store,
+  Tag,
+} from 'lucide-react'
+import type { Product, SortFilter, StoreSettings } from '../types'
+import { ProductCard } from './ProductCard'
+
+interface StoreViewProps {
+  products: Product[]
+  storeSettings: StoreSettings
+  isAdmin: boolean
+  onProductClick: (product: Product) => void
+  onHomeClick: () => void
+  onAdminClick: () => void
+}
+
+export function StoreView({
+  products,
+  storeSettings,
+  isAdmin,
+  onProductClick,
+  onHomeClick,
+  onAdminClick,
+}: StoreViewProps) {
+  const [searchQuery, setSearchQuery] = useState('')
+  const [storeFilter, setStoreFilter] = useState<SortFilter>('rekomendasi')
+
+  const filteredProducts = products
+    .filter((product) => product.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    .sort((a, b) => {
+      if (storeFilter === 'termurah') return a.price - b.price
+      if (storeFilter === 'premium') return b.price - a.price
+      return a.id - b.id
+    })
+
+  return (
+    <div className="pb-16 bg-gray-100 min-h-screen">
+      <div className="relative w-full h-40 bg-gray-800">
+        <img src={storeSettings.banner} alt="Store Banner" className="w-full h-full object-cover opacity-60" />
+
+        <div className="absolute top-0 w-full px-3 py-3 flex items-center justify-between z-10">
+          <button
+            onClick={onHomeClick}
+            className="w-8 h-8 rounded-full bg-black/40 text-white flex items-center justify-center backdrop-blur-sm"
+          >
+            <ChevronLeft size={24} />
+          </button>
+          <div className="flex-1 ml-3 bg-white/20 backdrop-blur-sm rounded-sm flex items-center px-2 py-1.5 border border-white/30">
+            <Search size={16} className="text-white" />
+            <input
+              type="text"
+              placeholder="Cari di toko ini..."
+              className="w-full text-xs outline-none px-2 bg-transparent text-white placeholder-white/80"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <button
+            onClick={onAdminClick}
+            className="w-8 h-8 ml-3 rounded-full bg-black/40 text-white flex items-center justify-center backdrop-blur-sm relative hover:bg-black/60"
+          >
+            <Settings size={18} />
+          </button>
+        </div>
+
+        <div className="absolute bottom-3 left-3 right-3 flex items-center gap-3">
+          <div className="w-14 h-14 bg-white rounded-full p-0.5 border-2 border-white shadow-md relative">
+            <div className="w-full h-full bg-gray-200 rounded-full flex items-center justify-center text-gray-500 overflow-hidden">
+              <Store size={28} />
+            </div>
+            <div className="absolute -bottom-1 -right-1 bg-green-500 w-3 h-3 rounded-full border-2 border-white"></div>
+          </div>
+          <div className="flex-1 text-white">
+            <h1 className="font-bold text-base leading-tight drop-shadow-md">{storeSettings.name}</h1>
+            <p className="text-[10px] text-white/80 flex items-center gap-1 mt-0.5">
+              <MapPin size={10} /> {storeSettings.location} • Aktif 2 menit lalu
+            </p>
+          </div>
+          <button
+            onClick={onAdminClick}
+            className={`border border-white px-3 py-1 rounded-sm text-xs font-medium backdrop-blur-sm flex items-center gap-1 ${isAdmin ? 'bg-orange-500 text-white' : 'bg-black/20 text-white hover:bg-white/20'}`}
+          >
+            {isAdmin ? (
+              <>
+                <Settings size={12} /> Kelola
+              </>
+            ) : (
+              '+ Ikuti'
+            )}
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white flex py-3 border-b shadow-sm">
+        <div className="flex-1 border-r text-center">
+          <div className="text-[#ee4d2d] font-bold text-sm">4.9/5.0</div>
+          <div className="text-[10px] text-gray-500 flex items-center justify-center gap-1">
+            <Star size={10} /> Penilaian
+          </div>
+        </div>
+        <div className="flex-1 border-r text-center">
+          <div className="text-[#ee4d2d] font-bold text-sm">1.2RB</div>
+          <div className="text-[10px] text-gray-500 flex items-center justify-center gap-1">
+            <Store size={10} /> Pengikut
+          </div>
+        </div>
+        <div className="flex-1 text-center">
+          <div className="text-[#ee4d2d] font-bold text-sm">98%</div>
+          <div className="text-[10px] text-gray-500 flex items-center justify-center gap-1">
+            <MessageSquare size={10} /> Performa Chat
+          </div>
+        </div>
+      </div>
+
+      <div className="px-2 pt-3">
+        <div className="flex items-center justify-between mb-3 px-1">
+          <h2 className="font-bold text-gray-800 text-sm">Semua Produk</h2>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {filteredProducts.length > 0 ? (
+            filteredProducts.map((product) => (
+              <ProductCard key={product.id} product={product} onClick={() => onProductClick(product)} />
+            ))
+          ) : (
+            <div className="col-span-2 text-center py-10 text-gray-500">
+              <Search size={32} className="mx-auto mb-2 text-gray-300" />
+              <p className="text-xs font-medium">Tidak ada produk yang cocok</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white border-t border-gray-200 flex justify-around items-center py-2 text-[10px] text-gray-500 z-40 shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
+        <div className="flex flex-col items-center cursor-pointer hover:text-[#ee4d2d]" onClick={onHomeClick}>
+          <HomeIcon size={20} />
+          <span>Rekomendasi</span>
+        </div>
+        <div
+          className={`flex flex-col items-center cursor-pointer ${storeFilter === 'termurah' ? 'text-[#ee4d2d]' : 'hover:text-[#ee4d2d]'}`}
+          onClick={() => {
+            setStoreFilter('termurah')
+            window.scrollTo({ top: 300, behavior: 'smooth' })
+          }}
+        >
+          <Tag size={20} />
+          <span>Termurah</span>
+        </div>
+        <div
+          className={`flex flex-col items-center cursor-pointer ${storeFilter === 'premium' ? 'text-[#ee4d2d]' : 'hover:text-[#ee4d2d]'}`}
+          onClick={() => {
+            setStoreFilter('premium')
+            window.scrollTo({ top: 300, behavior: 'smooth' })
+          }}
+        >
+          <Crown size={20} />
+          <span>Premium</span>
+        </div>
+        <div className="flex flex-col items-center text-[#ee4d2d]">
+          <Store size={20} />
+          <span>Toko Saya</span>
+        </div>
+      </div>
+    </div>
+  )
+}

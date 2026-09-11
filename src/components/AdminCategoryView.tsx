@@ -1,0 +1,95 @@
+import { useState } from 'react'
+import { Check, ChevronLeft, Plus, Trash2 } from 'lucide-react'
+import type { Category } from '../types'
+
+interface AdminCategoryViewProps {
+  categories: Category[]
+  onSave: (categories: Category[]) => void
+  onBack: () => void
+}
+
+export function AdminCategoryView({ categories, onSave, onBack }: AdminCategoryViewProps) {
+  const [cats, setCats] = useState<Category[]>(() => [...categories])
+
+  const handleAdd = () => {
+    setCats((prev) => [...prev, { id: Date.now(), icon: '📦', name: 'Kategori Baru' }])
+  }
+
+  const handleChange = (id: number, field: 'icon' | 'name', value: string) => {
+    setCats((prev) => prev.map((c) => (c.id === id ? { ...c, [field]: value } : c)))
+  }
+
+  const handleRemove = (id: number) => {
+    setCats((prev) => prev.filter((c) => c.id !== id))
+  }
+
+  const handleSave = () => {
+    onSave(cats)
+    onBack()
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      <div className="bg-gray-800 text-white px-4 py-4 flex items-center justify-between shadow-md sticky top-0 z-50">
+        <div className="flex items-center">
+          <button onClick={onBack} className="mr-3">
+            <ChevronLeft size={24} />
+          </button>
+          <h1 className="font-bold text-lg">Kelola Kategori</h1>
+        </div>
+        <button onClick={handleAdd} className="bg-green-500 text-white p-1.5 rounded-md">
+          <Plus size={18} />
+        </button>
+      </div>
+
+      <div className="p-4 flex-1 overflow-y-auto">
+        <p className="text-xs text-gray-500 mb-4">
+          Ubah nama dan emoji icon kategori untuk halaman utama.
+        </p>
+
+        <div className="space-y-3">
+          {cats.map((cat) => (
+            <div
+              key={cat.id}
+              className="bg-white p-3 rounded-md shadow-sm border border-gray-200 flex gap-2 items-center"
+            >
+              <div className="flex flex-col">
+                <label className="text-[10px] text-gray-400">Emoji</label>
+                <input
+                  type="text"
+                  value={cat.icon}
+                  onChange={(e) => handleChange(cat.id, 'icon', e.target.value)}
+                  className="w-12 border border-gray-300 rounded px-2 py-2 text-center text-lg outline-none focus:border-[#ee4d2d]"
+                />
+              </div>
+              <div className="flex-1 flex flex-col">
+                <label className="text-[10px] text-gray-400">Nama Kategori</label>
+                <input
+                  type="text"
+                  value={cat.name}
+                  onChange={(e) => handleChange(cat.id, 'name', e.target.value)}
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm outline-none focus:border-[#ee4d2d]"
+                />
+              </div>
+              <button
+                onClick={() => handleRemove(cat.id)}
+                className="mt-4 bg-red-50 text-red-500 p-2 rounded-md active:bg-red-100"
+              >
+                <Trash2 size={16} />
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="p-4 bg-white border-t border-gray-200 sticky bottom-0">
+        <button
+          onClick={handleSave}
+          className="w-full bg-[#ee4d2d] text-white font-bold py-3 rounded-md shadow-md active:bg-orange-600 flex items-center justify-center gap-2"
+        >
+          <Check size={18} /> Simpan Kategori
+        </button>
+      </div>
+    </div>
+  )
+}
