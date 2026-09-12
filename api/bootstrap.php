@@ -67,6 +67,11 @@ function json_out(mixed $data, int $status = 200): void
 {
     http_response_code($status);
     header('Content-Type: application/json; charset=utf-8');
+
+    // Sebagian hosting memakai serialize_precision=17 sehingga rating 4.9
+    // dikirim sebagai 4.9000000000000004. -1 memaksa bentuk terpendek.
+    ini_set('serialize_precision', '-1');
+
     echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit;
 }
