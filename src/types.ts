@@ -1,12 +1,17 @@
+export interface ProductImage {
+  url: string
+  thumbUrl: string
+}
+
 export interface Product {
   id: number
   name: string
   price: number
-  originalPrice?: number
+  originalPrice?: number | null
   sold: number
   location: string
   rating: number
-  images: string[]
+  images: ProductImage[]
   description: string
 }
 
@@ -26,6 +31,13 @@ export interface StoreSettings {
   location: string
   promoText: string
   banner: string
+  whatsappNumber: string
+}
+
+export interface Catalog {
+  products: Product[]
+  categories: Category[]
+  settings: StoreSettings
 }
 
 export type SortFilter = 'rekomendasi' | 'termurah' | 'premium'

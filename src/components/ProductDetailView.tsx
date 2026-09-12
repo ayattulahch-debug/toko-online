@@ -9,7 +9,6 @@ import {
   Star,
   Store,
 } from 'lucide-react'
-import { WHATSAPP_NUMBER } from '../data'
 import type { Product, StoreSettings } from '../types'
 import { formatRp, formatSold } from '../utils'
 
@@ -23,12 +22,21 @@ interface ProductDetailViewProps {
 export function ProductDetailView({ product, storeSettings, onBack, onStoreClick }: ProductDetailViewProps) {
   const [currentImgIdx, setCurrentImgIdx] = useState(0)
 
-  const nextImg = () => setCurrentImgIdx((prev) => (prev === product.images.length - 1 ? 0 : prev + 1))
-  const prevImg = () => setCurrentImgIdx((prev) => (prev === 0 ? product.images.length - 1 : prev - 1))
+  const imageCount = product.images.length
+  const currentImage = product.images[currentImgIdx]?.url ?? ''
+
+  const nextImg = () => setCurrentImgIdx((prev) => (prev === imageCount - 1 ? 0 : prev + 1))
+  const prevImg = () => setCurrentImgIdx((prev) => (prev === 0 ? imageCount - 1 : prev - 1))
 
   const handleBuyWhatsApp = () => {
-    const message = `Halo, saya tertarik untuk membeli produk ini dari katalog Anda:%0A%0A*${product.name}*%0AHarga: ${formatRp(product.price)}%0A%0AApakah stoknya masih tersedia?`
-    window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${message}`, '_blank')
+    const number = storeSettings.whatsappNumber
+    if (number === '') {
+      window.alert('Nomor WhatsApp toko belum diatur oleh admin.')
+      return
+    }
+
+    const message = `Halo, saya tertarik untuk membeli produk ini dari katalog Anda:\n\n*${product.name}*\nHarga: ${formatRp(product.price)}\n\nApakah stoknya masih tersedia?`
+    window.open(`https://wa.me/${number}?text=${encodeURIComponent(message)}`, '_blank')
   }
 
   return (
@@ -57,8 +65,15 @@ export function ProductDetailView({ product, storeSettings, onBack, onStoreClick
       </div>
 
       <div className="relative aspect-square bg-white">
-        <img src={product.images[currentImgIdx]} alt={product.name} className="w-full h-full object-cover" />
-        {product.images.length > 1 && (
+        {currentImage === '' ? (
+          <div className="w-full h-full flex items-center justify-center text-sm text-gray-400">
+            Foto belum tersedia
+          </div>
+        ) : (
+          <img src={currentImage} alt={product.name} className="w-full h-full object-cover" />
+        )}
+
+        {imageCount > 1 && (
           <>
             <button
               onClick={prevImg}
@@ -73,7 +88,7 @@ export function ProductDetailView({ product, storeSettings, onBack, onStoreClick
               <ChevronRight size={20} />
             </button>
             <div className="absolute bottom-3 right-3 bg-black/40 text-white text-[10px] px-2 py-0.5 rounded-full backdrop-blur-sm">
-              {currentImgIdx + 1} / {product.images.length}
+              {currentImgIdx + 1} / {imageCount}
             </div>
           </>
         )}
@@ -82,9 +97,11 @@ export function ProductDetailView({ product, storeSettings, onBack, onStoreClick
       <div className="bg-white p-3 mb-2 shadow-sm">
         <div className="text-[#ee4d2d] text-2xl font-bold flex items-center gap-2">
           {formatRp(product.price)}
-          {product.originalPrice && (
-            <span className="text-gray-400 text-sm line-through font-normal">{formatRp(product.originalPrice)}</span>
-          )}
+          {product.originalPrice ? (
+            <span className="text-gray-400 text-sm line-through font-normal">
+              {formatRp(product.originalPrice)}
+            </span>
+          ) : null}
         </div>
         <h1 className="text-gray-800 text-sm font-semibold mt-1 leading-snug">
           <span className="inline-block align-middle bg-[#ee4d2d] text-white text-[9px] px-1 py-0.5 rounded-sm mr-1">

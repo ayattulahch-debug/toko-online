@@ -1,18 +1,20 @@
 import { useState } from 'react'
-import { Check, ChevronLeft, Plus, Trash2 } from 'lucide-react'
+import { Check, ChevronLeft, Loader2, Plus, Trash2 } from 'lucide-react'
 import type { Category } from '../types'
 
 interface AdminCategoryViewProps {
   categories: Category[]
-  onSave: (categories: Category[]) => void
+  onSave: (categories: Category[]) => Promise<void>
   onBack: () => void
 }
 
 export function AdminCategoryView({ categories, onSave, onBack }: AdminCategoryViewProps) {
-  const [cats, setCats] = useState<Category[]>(() => [...categories])
+  const [cats, setCats] = useState<Category[]>(() => categories.map((category) => ({ ...category })))
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const handleAdd = () => {
-    setCats((prev) => [...prev, { id: Date.now(), icon: '📦', name: 'Kategori Baru' }])
+    setCats((prev) => [...prev, { id: -Date.now(), icon: '📦', name: 'Kategori Baru' }])
   }
 
   const handleChange = (id: number, field: 'icon' | 'name', value: string) => {
@@ -23,9 +25,18 @@ export function AdminCategoryView({ categories, onSave, onBack }: AdminCategoryV
     setCats((prev) => prev.filter((c) => c.id !== id))
   }
 
-  const handleSave = () => {
-    onSave(cats)
-    onBack()
+  const handleSave = async () => {
+    setSaving(true)
+    setError(null)
+
+    try {
+      await onSave(cats.map(({ icon, name }) => ({ id: 0, icon, name })))
+      onBack()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Gagal menyimpan kategori.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -80,14 +91,18 @@ export function AdminCategoryView({ categories, onSave, onBack }: AdminCategoryV
             </div>
           ))}
         </div>
+
+        {error !== null && <p className="text-xs text-red-500 mt-4">{error}</p>}
       </div>
 
       <div className="p-4 bg-white border-t border-gray-200 sticky bottom-0">
         <button
-          onClick={handleSave}
-          className="w-full bg-[#ee4d2d] text-white font-bold py-3 rounded-md shadow-md active:bg-orange-600 flex items-center justify-center gap-2"
+          onClick={() => void handleSave()}
+          disabled={saving}
+          className="w-full bg-[#ee4d2d] text-white font-bold py-3 rounded-md shadow-md active:bg-orange-600 flex items-center justify-center gap-2 disabled:opacity-60"
         >
-          <Check size={18} /> Simpan Kategori
+          {saving ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}
+          {saving ? 'Menyimpan...' : 'Simpan Kategori'}
         </button>
       </div>
     </div>

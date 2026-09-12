@@ -1,13 +1,21 @@
 import { useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
-import { Check, ChevronLeft, Trash2, Upload } from 'lucide-react'
-import type { Product, ProductForm } from '../types'
+import { Check, ChevronLeft, Loader2, Trash2, Upload } from 'lucide-react'
+import { uploadImage } from '../api'
+import { compressImage } from '../lib/image'
+import type { Product, ProductForm, ProductImage } from '../types'
 
 type EditableField = 'name' | 'price' | 'originalPrice' | 'description'
 
+const MAX_IMAGES = 5
+
+interface DraftImage extends ProductImage {
+  previewUrl?: string
+}
+
 interface AdminEditProductViewProps {
   product: Product
-  onSave: (product: Product) => void
+  onSave: (product: Product) => Promise<void>
   onCancel: () => void
 }
 
@@ -21,6 +29,10 @@ function toForm(product: Product): ProductForm {
 
 export function AdminEditProductView({ product, onSave, onCancel }: AdminEditProductViewProps) {
   const [formData, setFormData] = useState<ProductForm>(() => toForm(product))
+  const [images, setImages] = useState<DraftImage[]>(() => product.images.map((image) => ({ ...image })))
+  const [uploading, setUploading] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const name = e.target.name as EditableField
@@ -29,29 +41,60 @@ export function AdminEditProductView({ product, onSave, onCancel }: AdminEditPro
   }
 
   const handleRemoveImage = (index: number) => {
-    setFormData((prev) => ({ ...prev, images: prev.images.filter((_, i) => i !== index) }))
-  }
-
-  const handleImageUpload = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    const reader = new FileReader()
-    reader.onloadend = () => {
-      if (typeof reader.result === 'string') {
-        setFormData((prev) => ({ ...prev, images: [...prev.images, reader.result as string] }))
-      }
+    const target = images[index]
+    if (target?.previewUrl !== undefined) {
+      URL.revokeObjectURL(target.previewUrl)
     }
-    reader.readAsDataURL(file)
+    setImages((prev) => prev.filter((_, i) => i !== index))
   }
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const handleImageUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (file === undefined) return
+
+    const previewUrl = URL.createObjectURL(file)
+    setImages((prev) => [...prev, { url: '', thumbUrl: '', previewUrl }])
+    setUploading(true)
+    setError(null)
+
+    try {
+      const compressed = await compressImage(file)
+      const uploaded = await uploadImage(compressed.full, compressed.thumb)
+      setImages((prev) => prev.map((image) => (image.previewUrl === previewUrl ? { ...uploaded } : image)))
+    } catch (err) {
+      setImages((prev) => prev.filter((image) => image.previewUrl !== previewUrl))
+      setError(err instanceof Error ? err.message : 'Gagal mengunggah foto.')
+    } finally {
+      URL.revokeObjectURL(previewUrl)
+      setUploading(false)
+    }
+  }
+
+  const readyImages = images.filter((image) => image.url !== '')
+  const canSubmit = images.length > 0 && images.length === readyImages.length && !uploading && !saving
+
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    if (formData.images.length === 0) return
-    onSave({
-      ...formData,
-      price: Number(formData.price) || 0,
-      originalPrice: formData.originalPrice === '' ? undefined : Number(formData.originalPrice),
-    })
+    if (!canSubmit) return
+
+    setSaving(true)
+    setError(null)
+
+    try {
+      await onSave({
+        ...product,
+        name: formData.name.trim(),
+        price: Number(formData.price) || 0,
+        originalPrice: formData.originalPrice === '' ? null : Number(formData.originalPrice),
+        description: formData.description,
+        images: readyImages.map(({ url, thumbUrl }) => ({ url, thumbUrl })),
+      })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Gagal menyimpan produk.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -60,16 +103,23 @@ export function AdminEditProductView({ product, onSave, onCancel }: AdminEditPro
         <button onClick={onCancel} className="mr-3">
           <ChevronLeft size={24} />
         </button>
-        <h1 className="font-bold text-lg">Edit Produk</h1>
+        <h1 className="font-bold text-lg">{product.id === 0 ? 'Tambah Produk' : 'Edit Produk'}</h1>
       </div>
 
       <form onSubmit={handleSubmit} className="p-4 flex-1 overflow-y-auto">
         <div className="bg-white p-4 rounded-md shadow-sm border border-gray-200 mb-4">
-          <label className="text-sm font-bold text-gray-800 mb-3 block">Foto Produk (Maks 5)</label>
+          <label className="text-sm font-bold text-gray-800 mb-3 block">
+            Foto Produk (Maks {MAX_IMAGES})
+          </label>
           <div className="flex flex-wrap gap-2">
-            {formData.images.map((img, idx) => (
+            {images.map((img, idx) => (
               <div key={idx} className="relative w-20 h-20 border rounded-md overflow-hidden bg-gray-100">
-                <img src={img} alt="preview" className="w-full h-full object-cover" />
+                <img src={img.url || img.previewUrl} alt="preview" className="w-full h-full object-cover" />
+                {img.url === '' && (
+                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                    <Loader2 size={20} className="text-white animate-spin" />
+                  </div>
+                )}
                 <button
                   type="button"
                   onClick={() => handleRemoveImage(idx)}
@@ -80,17 +130,30 @@ export function AdminEditProductView({ product, onSave, onCancel }: AdminEditPro
               </div>
             ))}
 
-            {formData.images.length < 5 && (
+            {images.length < MAX_IMAGES && (
               <label className="w-20 h-20 border-2 border-dashed border-gray-300 rounded-md flex flex-col items-center justify-center text-gray-400 cursor-pointer hover:bg-gray-50 active:bg-gray-100">
-                <Upload size={20} className="mb-1" />
-                <span className="text-[9px] font-medium">Tambah Foto</span>
-                <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                {uploading ? (
+                  <Loader2 size={20} className="mb-1 animate-spin" />
+                ) : (
+                  <Upload size={20} className="mb-1" />
+                )}
+                <span className="text-[9px] font-medium">{uploading ? 'Mengunggah' : 'Tambah Foto'}</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  disabled={uploading}
+                  onChange={(e) => void handleImageUpload(e)}
+                />
               </label>
             )}
           </div>
-          {formData.images.length === 0 && (
+          {images.length === 0 && (
             <p className="text-xs text-red-500 mt-2">Minimal 1 foto wajib diisi!</p>
           )}
+          <p className="text-[10px] text-gray-400 mt-2">
+            Foto otomatis diperkecil dan dikompres sebelum diunggah agar hemat ruang hosting.
+          </p>
         </div>
 
         <div className="bg-white p-4 rounded-md shadow-sm border border-gray-200 space-y-4">
@@ -117,6 +180,7 @@ export function AdminEditProductView({ product, onSave, onCancel }: AdminEditPro
                 value={formData.price}
                 onChange={handleChange}
                 required
+                min={0}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 mt-1 text-sm outline-none focus:border-[#ee4d2d]"
               />
             </div>
@@ -127,6 +191,7 @@ export function AdminEditProductView({ product, onSave, onCancel }: AdminEditPro
                 name="originalPrice"
                 value={formData.originalPrice}
                 onChange={handleChange}
+                min={0}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 mt-1 text-sm outline-none focus:border-[#ee4d2d]"
               />
             </div>
@@ -145,6 +210,10 @@ export function AdminEditProductView({ product, onSave, onCancel }: AdminEditPro
           </div>
         </div>
 
+        {error !== null && (
+          <p className="text-xs text-red-500 mt-4 bg-red-50 border border-red-200 rounded-md p-3">{error}</p>
+        )}
+
         <div className="mt-6 mb-8 flex gap-3">
           <button
             type="button"
@@ -155,10 +224,11 @@ export function AdminEditProductView({ product, onSave, onCancel }: AdminEditPro
           </button>
           <button
             type="submit"
-            disabled={formData.images.length === 0}
+            disabled={!canSubmit}
             className="flex-[2] bg-blue-600 text-white font-bold py-3 rounded-md shadow-md hover:bg-blue-700 active:bg-blue-800 flex items-center justify-center gap-2 disabled:opacity-50"
           >
-            <Check size={18} /> Simpan
+            {saving ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}
+            {saving ? 'Menyimpan...' : 'Simpan'}
           </button>
         </div>
       </form>

@@ -1,7 +1,8 @@
 # Toko Akrilik Kreatif — Toko Online
 
-Katalog toko online bergaya Shopee, jalan sepenuhnya di browser (tidak butuh server/backend).
-Dibuat dengan **Vite + React + TypeScript + Tailwind CSS v4**.
+Katalog toko online bergaya Shopee dengan **data tersimpan di server**, bukan lagi di browser.
+Dibuat dengan **Vite + React + TypeScript + Tailwind CSS v4** di sisi tampilan, dan
+**PHP + MySQL** di sisi data — keduanya berjalan di satu paket cPanel biasa.
 
 ## Fitur
 
@@ -9,18 +10,74 @@ Dibuat dengan **Vite + React + TypeScript + Tailwind CSS v4**.
 - Filter cepat: Rekomendasi / Termurah / Premium
 - Detail produk: galeri foto, harga coret, rating, deskripsi, tombol chat WhatsApp
 - Halaman toko: banner, statistik, dan katalog produk
-- Panel admin (CRUD): tambah/edit produk, kelola kategori, atur nama toko & banner
-- Data tersimpan di `localStorage` browser, jadi perubahan admin tetap ada setelah refresh
+- Panel admin (login server-side): tambah / edit / hapus produk, kelola kategori,
+  atur nama toko, banner, dan nomor WhatsApp, serta ganti password
+- Gambar produk dikompres otomatis di browser sebelum diunggah, jadi hemat ruang hosting
+- Katalog tersimpan di database, sehingga **semua pengunjung melihat data yang sama**
+
+## Arsitektur
+
+```
+Pengunjung  ──►  index.html + assets/   (React SPA, hasil build Vite)
+                     │
+                     └── fetch ──►  /api/*.php  ──►  MySQL
+                                        │
+                                        └──►  /uploads/produk/  (foto hasil upload admin)
+```
+
+Kenapa bukan Node.js? Paket hosting cPanel ini tidak menjamin fitur "Setup Node.js App", dan RAM
+0,5 GB terlalu sempit untuk proses Node yang jalan terus. PHP + MySQL selalu tersedia di cPanel dan
+tidak menyimpan proses di memori.
+
+## Struktur proyek
+
+```
+api/                              backend PHP (dibaca langsung oleh cPanel, tidak di-build)
+  config.sample.php               contoh konfigurasi — disalin jadi config.php di hosting
+  bootstrap.php                   koneksi PDO, helper JSON, autentikasi Bearer
+  install.php                     instalasi sekali pakai (buat tabel + admin) — HAPUS setelah dipakai
+  auth.php                        login, logout, ganti password
+  catalog.php                     GET publik: produk + kategori + pengaturan
+  products.php                    tambah / edit / hapus produk
+  categories.php                  simpan daftar kategori
+  settings.php                    simpan pengaturan toko
+  upload.php                      terima gambar (full + thumbnail)
+
+public/.htaccess                  konfigurasi Apache, otomatis tersalin ke dist/
+src/
+  App.tsx                         state utama + routing antar halaman
+  api.ts                          semua pemanggilan ke /api
+  types.ts                        tipe TypeScript
+  utils.ts                        format harga & jumlah terjual
+  lib/image.ts                    kompres & perkecil gambar di browser
+  hooks/useCatalog.ts             ambil katalog dari server + refresh
+  components/                     seluruh tampilan (beranda, detail, admin, dll)
+
+.github/workflows/deploy.yml      build otomatis → push ke branch `deploy`
+```
 
 ## Menjalankan di localhost
 
+Tampilan saja (pakai data dari server yang sudah online):
+
 ```bash
-cd toko-online
 npm install
 npm run dev
 ```
 
-Buka http://localhost:5173/
+Untuk memakai backend lokal juga, buat `.env.local`:
+
+```
+VITE_API_BASE=https://domainmu.com/api
+```
+
+Cara itu tidak perlu PHP di komputer. Kalau PHP tersedia, backend bisa dijalankan lokal dengan
+membuat `api/config.php` (salin dari `config.sample.php`) lalu:
+
+```bash
+php -S localhost:8000
+npm run dev
+```
 
 Perintah lain:
 
@@ -30,115 +87,117 @@ npm run preview   # uji hasil build secara lokal
 npm run lint      # jalankan oxlint
 ```
 
-## Login admin
+> **Catatan Windows:** kalau `npm run build` gagal dengan `'tsc' is not recognized`, berarti
+> variabel environment `NODE_ENV=production` sedang aktif sehingga `npm install` melewatkan
+> devDependencies. Perbaiki dengan `npm install --include=dev`.
 
-Halaman admin dibuka dari halaman toko (ikon gerigi kanan atas), dengan kredensial:
+## Setup hosting (sekali saja)
 
-- Username: `admin`
-- Password: `admin123`
+### 1. Buat database
 
-> Catatan keamanan: login ini berjalan di sisi browser dan hanya untuk demo. Jangan dipakai untuk
-> data sensitif. Untuk toko sungguhan, pindahkan verifikasi ke backend.
+cPanel → **MySQL® Databases**:
 
-## Kustomisasi cepat
+1. Buat database, misal `toko`
+2. Buat user database beserta password yang kuat
+3. Tambahkan user itu ke database dengan **ALL PRIVILEGES**
 
-- **Nomor WhatsApp tujuan** → `src/data.ts` (`WHATSAPP_NUMBER`), format `62812...` tanpa `+` atau `0` di depan
-- **Produk, kategori, nama toko, banner** → bisa langsung diubah lewat panel admin, atau ubah nilai
-  awal di `src/data.ts` (dipakai saat localStorage masih kosong)
-- **Warna utama** → cari `#ee4d2d` (oranye khas Shopee)
+Nama yang dipakai nanti akan berawalan username cPanel, misal `elsya_toko` dan `elsya_tokouser`.
 
-## Struktur proyek
+### 2. Daftarkan repo di cPanel Git
 
-```
-src/
-  App.tsx                       # state utama + routing antar halaman
-  data.ts                       # data awal produk, kategori, pengaturan toko
-  types.ts                      # tipe TypeScript
-  utils.ts                      # format harga & jumlah terjual
-  hooks/usePersistentState.ts   # sinkronisasi state ke localStorage
-  components/
-    HomeView.tsx                # beranda
-    ProductDetailView.tsx       # detail produk
-    StoreView.tsx               # halaman toko
-    ProductCard.tsx             # kartu produk (dipakai beranda & toko)
-    AdminLoginView.tsx          # login pengelola
-    AdminDashboardView.tsx      # dashboard admin
-    AdminEditProductView.tsx    # form tambah/edit produk
-    AdminCategoryView.tsx       # kelola kategori
-    AdminSettingsView.tsx       # pengaturan tampilan toko
-```
+cPanel → **Git™ Version Control** → **Create**:
 
-## Alur deploy: GitHub → Zenhosta (cPanel)
+- Clone URL: `https://github.com/<username>/<repo>.git`
+- Branch: **`deploy`** (bukan `main`)
+- Directory: `/home/<username>/public_html`
 
-Karena aplikasi ini murni statis, hasil `npm run build` (folder `dist/`) bisa langsung di-upload ke hosting.
+Bersihkan dulu isi `public_html` dari file bawaan hosting (misal `index.html` default) supaya
+tidak bentrok.
 
-> **PENTING — jangan jalankan `git add .` dari folder `Pictures\Toko Online`.**
-> Di komputer ini, repo git yang aktif ber-root di `C:\Users\El syafier` (home directory) dan
-> terhubung ke remote `portfolio-ayat.git`. Menjalankan git dari sana berisiko menyeret seluruh
-> profil Windows (NTUSER.DAT, AppData, Documents, dll) ke dalam commit.
-> Buat repo git baru **khusus di dalam folder `toko-online`** (langkah 1 di bawah).
+Butuh branch `deploy` ini sudah ada. Caranya: push ke branch `main` di GitHub, lalu GitHub Actions
+akan otomatis membangun situs dan mendorongnya ke branch `deploy` (lihat bagian berikutnya).
 
-### 1. Buat repo git khusus untuk project ini
+### 3. Buat file konfigurasi
 
-```bash
-cd toko-online
-git init
-git add .
-git commit -m "Toko online akrilik - versi awal"
-```
+Lewat cPanel **File Manager**, masuk ke `public_html/api`, lalu:
 
-`.gitignore` sudah disiapkan: `node_modules` dan `dist` tidak akan ikut ter-commit.
+1. Salin `config.sample.php` menjadi `config.php`
+2. Isi `db_name`, `db_user`, `db_pass` sesuai langkah 1
+3. Ganti `setup_key` dengan teks rahasia pilihanmu
 
-### 2. Push ke GitHub
+File ini tidak ikut Git, jadi tidak akan tertimpa saat update.
 
-Buat repository baru di GitHub (misal `toko-online`), lalu:
+### 4. Jalankan instalasi
+
+Buka `https://domainmu.com/api/install.php`, isi setup key dan tentukan username + password admin.
+Halaman ini akan membuat tabel, mengisi data contoh, dan membuat akun admin.
+
+**Setelah selesai, hapus `api/install.php` lewat File Manager.** Selama file itu ada, siapa pun yang
+tahu setup key bisa membuat akun admin baru.
+
+### 5. Aktifkan HTTPS
+
+cPanel → **Domains** → aktifkan **Force HTTPS Redirect**, supaya password admin tidak dikirim
+lewat koneksi tanpa enkripsi.
+
+## Deploy setiap kali ada perubahan
 
 ```bash
-cd toko-online
-git branch -M main
-git remote add origin https://github.com/<username>/toko-online.git
-git push -u origin main
+git push          # ke branch main
 ```
 
-Jika muncul error "remote origin already exists", berarti folder ini masih mewarisi remote induk —
-hapus dulu dengan `git remote remove origin` lalu ulangi perintah di atas.
+Alurnya otomatis:
 
-### 3. Build untuk produksi
-
-```bash
-cd toko-online
-npm install
-npm run build
+```
+git push (main)
+   └─ GitHub Actions: npm ci → npm run build → rakit branch `deploy` → push
+        └─ cPanel → Git™ Version Control → klik "Update from Remote"
 ```
 
-Hasilnya ada di `toko-online/dist/` berisi `index.html` + folder `assets/`.
+`GITHUB_TOKEN` bawaan dipakai untuk mendorong branch `deploy`, jadi **tidak perlu menambah secret**.
 
-### 4. Upload ke cPanel Zenhosta
+Folder `uploads/` dan `api/config.php` sengaja tidak di-track Git, sehingga foto yang sudah diunggah
+dan kredensial database **aman** saat "Update from Remote". Jangan pernah menambahkan keduanya ke repo.
 
-1. Login ke cPanel `zenhosta.com`
-2. Buka **File Manager** → masuk ke `public_html`
-3. Kalau ada `index.html` bawaan (halaman default hosting), hapus atau rename dulu
-4. Upload **isi** folder `dist` (bukan foldernya), yaitu `index.html` + folder `assets`
-   - Cara praktis: compress `dist` jadi `dist.zip`, upload, lalu **Extract** di dalam `public_html`
-5. Pastikan strukturnya jadi: `public_html/index.html` dan `public_html/assets/...`
-6. Buka `zenhosta.com` di browser
+## Gambar dan kuota hosting
 
-### Alternatif: deploy otomatis lewat Git di cPanel
+Paket yang dipakai punya 512 MB ruang. Karena itu setiap foto diperkecil otomatis di browser:
 
-Kalau cPanel Zenhosta menyediakan menu **Git™ Version Control**:
+| Versi | Ukuran sisi terpanjang | Perkiraan ukuran | Dipakai di |
+|---|---|---|---|
+| Thumbnail | 400 px | ± 25 KB | grid katalog |
+| Foto penuh | 1400 px | ± 180 KB | halaman detail |
 
-1. Daftarkan repository GitHub yang sama di menu tersebut
-2. Clone ke direktori `public_html`
-3. Setiap kali ada perubahan: `git push` ke GitHub, lalu klik **Update from Remote** di cPanel
-4. Tetap jalankan `npm run build` di lokal dan upload folder `dist` — hosting statis tidak
-   menjalankan Node.js, jadi build tidak bisa dilakukan di server
+Perkiraan total untuk 50 produk × 5 foto ≈ **50 MB**. Kalau nanti jumlah foto melewati ±350 MB
+(kira-kira 300+ produk berfoto 5), baru pertimbangkan memindahkan gambar ke layanan seperti
+Cloudinary.
 
-### Catatan penting saat deploy
+## Keamanan
 
-- Aplikasi memakai gambar dari Unsplash dan font Inter dari Google Fonts, jadi butuh koneksi internet.
-  Untuk sepenuhnya mandiri, unduh gambar/font dan simpan di `public/`.
-- Semua data tersimpan di `localStorage` **per browser**. Produk yang diubah lewat panel admin hanya
-  tampil di browser itu sendiri, tidak otomatis muncul untuk pengunjung lain. Kalau nanti butuh
-  katalog yang sama untuk semua orang, perlu backend atau database.
-- Aplikasi ini single-page tanpa URL routing, jadi tidak butuh konfigurasi `.htaccess` atau
-  rewrite rule khusus di cPanel.
+- Login diverifikasi **di server** dengan password ter-hash bcrypt, bukan di JavaScript
+- Setiap aksi admin memakai token Bearer yang disimpan di tabel `admin_tokens` dan kedaluwarsa
+  setelah 14 hari
+- Semua query memakai prepared statement
+- Upload divalidasi tipe MIME aslinya, dibatasi 2 MB, diberi nama acak, dan folder `uploads/`
+  tidak bisa mengeksekusi PHP
+- `.htaccess` memblokir akses ke folder `.git` dan berkas `.sql`/`.md`/`.log`
+
+## Kalau ada masalah
+
+| Gejala | Penyebab dan solusi |
+|---|---|
+| "Server belum dikonfigurasi" | `api/config.php` belum dibuat atau salah nama |
+| "Tidak dapat terhubung ke database" | Cek `db_name`/`db_user`/`db_pass` di `api/config.php` |
+| Login selalu "username atau password salah" | Akun admin belum dibuat — jalankan `install.php`, atau password salah |
+| Katalog gagal dimuat | Buka `https://domainmu.com/api/catalog.php`; kalau muncul pesan error, itu penyebabnya |
+| Login berhasil di lokal tapi gagal di hosting | Header `Authorization` tidak diteruskan — pastikan `.htaccess` ikut ter-upload |
+| Gambar tidak muncul setelah upload | Pastikan folder `public_html/uploads/produk` ada dan bisa ditulis (permission 755) |
+| Perubahan tidak muncul di cPanel | Klik **Update from Remote**, dan pastikan GitHub Actions selesai tanpa error |
+
+## Batasan
+
+- Katalog memuat seluruh produk sekaligus. Masih tepat untuk di bawah 100 produk; kalau nanti jauh
+  lebih banyak, perlu pagination di sisi server.
+- Belum ada keranjang dan pembayaran online — transaksi lewat WhatsApp, sesuai kebutuhan.
+- Produk contoh memakai gambar dari Unsplash. Ganti dengan foto aslimu lewat panel admin agar
+  katalog tidak bergantung pada situs luar.

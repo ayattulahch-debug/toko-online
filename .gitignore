@@ -12,6 +12,12 @@ dist
 dist-ssr
 *.local
 
+# Kredensial database — dibuat manual di hosting, jangan pernah di-commit
+api/config.php
+
+# Gambar hasil upload admin dari panel
+uploads/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

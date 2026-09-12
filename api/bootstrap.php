@@ -1,0 +1,241 @@
+<?php
+
+declare(strict_types=1);
+
+const TOKEN_LIFETIME_DAYS = 14;
+const MAX_IMAGES_PER_PRODUCT = 5;
+const UPLOAD_URL_PREFIX = '/uploads/produk/';
+
+function config(): array
+{
+    static $config = null;
+
+    if ($config === null) {
+        $path = __DIR__ . '/config.php';
+        if (!is_file($path)) {
+            json_error('Server belum dikonfigurasi: file api/config.php tidak ditemukan.', 500);
+        }
+
+        $loaded = require $path;
+        if (!is_array($loaded)) {
+            json_error('Isi api/config.php tidak valid.', 500);
+        }
+
+        $config = $loaded;
+    }
+
+    return $config;
+}
+
+function db_connect(): PDO
+{
+    $c = config();
+
+    return new PDO(
+        sprintf(
+            'mysql:host=%s;dbname=%s;charset=%s',
+            (string) $c['db_host'],
+            (string) $c['db_name'],
+            (string) ($c['db_charset'] ?? 'utf8mb4')
+        ),
+        (string) $c['db_user'],
+        (string) $c['db_pass'],
+        [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES => false,
+        ]
+    );
+}
+
+function db(): PDO
+{
+    static $pdo = null;
+
+    if ($pdo === null) {
+        try {
+            $pdo = db_connect();
+        } catch (PDOException $e) {
+            json_error('Tidak dapat terhubung ke database. Periksa isi api/config.php.', 500);
+        }
+    }
+
+    return $pdo;
+}
+
+function json_out(mixed $data, int $status = 200): void
+{
+    http_response_code($status);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+function json_error(string $message, int $status = 400): void
+{
+    json_out(['error' => $message], $status);
+}
+
+function read_json_body(): array
+{
+    $raw = file_get_contents('php://input');
+    if ($raw === false || $raw === '') {
+        return [];
+    }
+
+    $data = json_decode($raw, true);
+    if (!is_array($data)) {
+        json_error('Format data yang dikirim tidak valid.');
+    }
+
+    return $data;
+}
+
+function send_cors(): void
+{
+    header('Access-Control-Allow-Origin: *');
+    header('Access-Control-Allow-Headers: Content-Type, Authorization');
+    header('Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS');
+
+    if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
+        http_response_code(204);
+        exit;
+    }
+}
+
+function require_method(string $method): void
+{
+    if (($_SERVER['REQUEST_METHOD'] ?? '') !== $method) {
+        json_error('Metode request tidak diizinkan.', 405);
+    }
+}
+
+function bearer_token(): ?string
+{
+    $header = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+
+    if ($header === '' && function_exists('apache_request_headers')) {
+        foreach (apache_request_headers() as $name => $value) {
+            if (strcasecmp((string) $name, 'Authorization') === 0) {
+                $header = (string) $value;
+                break;
+            }
+        }
+    }
+
+    if (preg_match('/^Bearer\s+([a-f0-9]{64})$/i', trim($header), $matches) === 1) {
+        return strtolower($matches[1]);
+    }
+
+    return null;
+}
+
+function current_user(): ?array
+{
+    $token = bearer_token();
+    if ($token === null) {
+        return null;
+    }
+
+    $stmt = db()->prepare(
+        'SELECT u.id, u.username
+         FROM admin_tokens t
+         INNER JOIN admin_users u ON u.id = t.user_id
+         WHERE t.token = ? AND t.expires_at > NOW()'
+    );
+    $stmt->execute([$token]);
+    $user = $stmt->fetch();
+
+    return $user === false ? null : $user;
+}
+
+function require_auth(): array
+{
+    $user = current_user();
+    if ($user === null) {
+        json_error('Sesi tidak valid atau sudah berakhir. Silakan login ulang.', 401);
+    }
+
+    return $user;
+}
+
+function uploads_dir(): string
+{
+    return dirname(__DIR__) . '/uploads/produk';
+}
+
+function delete_upload_file(string $url): void
+{
+    if (!str_starts_with($url, UPLOAD_URL_PREFIX)) {
+        return;
+    }
+
+    $file = uploads_dir() . '/' . basename($url);
+    if (is_file($file)) {
+        @unlink($file);
+    }
+}
+
+function is_valid_image_url(string $url): bool
+{
+    if (str_starts_with($url, UPLOAD_URL_PREFIX)) {
+        return is_file(uploads_dir() . '/' . basename($url));
+    }
+
+    if (filter_var($url, FILTER_VALIDATE_URL) === false) {
+        return false;
+    }
+
+    return in_array(strtolower((string) parse_url($url, PHP_URL_SCHEME)), ['http', 'https'], true);
+}
+
+function normalize_images(mixed $images): array
+{
+    if (!is_array($images) || $images === []) {
+        json_error('Minimal 1 foto produk wajib diisi.');
+    }
+
+    if (count($images) > MAX_IMAGES_PER_PRODUCT) {
+        json_error('Maksimal ' . MAX_IMAGES_PER_PRODUCT . ' foto per produk.');
+    }
+
+    $result = [];
+
+    foreach ($images as $image) {
+        if (!is_array($image)) {
+            json_error('Format data foto tidak valid.');
+        }
+
+        $url = trim((string) ($image['url'] ?? ''));
+        $thumbUrl = trim((string) ($image['thumbUrl'] ?? ''));
+
+        if ($thumbUrl === '') {
+            $thumbUrl = $url;
+        }
+
+        if (!is_valid_image_url($url) || !is_valid_image_url($thumbUrl)) {
+            json_error('Ada foto yang tidak valid. Silakan upload ulang foto tersebut.');
+        }
+
+        $result[] = ['url' => $url, 'thumbUrl' => $thumbUrl];
+    }
+
+    return $result;
+}
+
+function normalize_whatsapp(string $number): string
+{
+    $digits = preg_replace('/\D+/', '', $number);
+
+    if ($digits === null || $digits === '') {
+        return '';
+    }
+
+    if (str_starts_with($digits, '0')) {
+        $digits = '62' . substr($digits, 1);
+    } elseif (str_starts_with($digits, '8')) {
+        $digits = '62' . $digits;
+    }
+
+    return $digits;
+}

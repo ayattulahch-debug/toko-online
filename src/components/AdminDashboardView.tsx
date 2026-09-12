@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronLeft, Edit3, Layout, LogOut, Plus, Settings } from 'lucide-react'
+import { ChevronLeft, Edit3, Layout, Loader2, LogOut, Plus, Settings, Trash2 } from 'lucide-react'
 import type { Product, View } from '../types'
 import { formatRp } from '../utils'
 
@@ -10,6 +10,7 @@ interface AdminDashboardViewProps {
   onLogout: () => void
   onAddProduct: () => void
   onEditProduct: (product: Product) => void
+  onDeleteProduct: (product: Product) => Promise<void>
   onNavigate: (view: View) => void
 }
 
@@ -18,9 +19,29 @@ export function AdminDashboardView({
   onLogout,
   onAddProduct,
   onEditProduct,
+  onDeleteProduct,
   onNavigate,
 }: AdminDashboardViewProps) {
   const [tab, setTab] = useState<DashboardTab>('products')
+  const [deletingId, setDeletingId] = useState<number | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  const handleDelete = async (product: Product) => {
+    if (!window.confirm(`Hapus produk "${product.name}"? Tindakan ini tidak bisa dibatalkan.`)) {
+      return
+    }
+
+    setDeletingId(product.id)
+    setError(null)
+
+    try {
+      await onDeleteProduct(product)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Gagal menghapus produk.')
+    } finally {
+      setDeletingId(null)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -57,7 +78,7 @@ export function AdminDashboardView({
         {tab === 'products' && (
           <div className="space-y-3 pb-4">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-xs text-gray-500">Pilih produk yang ingin diedit.</p>
+              <p className="text-xs text-gray-500">{products.length} produk tampil di katalog.</p>
               <button
                 onClick={onAddProduct}
                 className="bg-green-500 text-white px-3 py-1.5 rounded-md text-xs font-bold flex items-center gap-1 shadow-sm active:bg-green-600"
@@ -65,13 +86,24 @@ export function AdminDashboardView({
                 <Plus size={14} /> Tambah
               </button>
             </div>
+
+            {error !== null && (
+              <p className="text-xs text-red-500 bg-red-50 border border-red-200 rounded-md p-3">{error}</p>
+            )}
+
             {products.map((p) => (
               <div
                 key={p.id}
                 className="bg-white p-3 rounded-md shadow-sm flex items-center gap-3 border border-gray-100"
               >
-                <img src={p.images[0]} className="w-16 h-16 object-cover rounded" alt="thumb" />
-                <div className="flex-1">
+                {p.images[0] === undefined ? (
+                  <div className="w-16 h-16 rounded bg-gray-100 flex items-center justify-center text-[9px] text-gray-400">
+                    Tanpa foto
+                  </div>
+                ) : (
+                  <img src={p.images[0].thumbUrl} className="w-16 h-16 object-cover rounded" alt="thumb" />
+                )}
+                <div className="flex-1 min-w-0">
                   <h3 className="text-xs font-bold text-gray-800 line-clamp-1">{p.name}</h3>
                   <p className="text-[#ee4d2d] text-xs font-semibold mt-1">{formatRp(p.price)}</p>
                 </div>
@@ -81,8 +113,25 @@ export function AdminDashboardView({
                 >
                   <Edit3 size={16} />
                 </button>
+                <button
+                  onClick={() => void handleDelete(p)}
+                  disabled={deletingId === p.id}
+                  className="p-2 bg-red-50 text-red-500 rounded-md active:bg-red-100 disabled:opacity-50"
+                >
+                  {deletingId === p.id ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    <Trash2 size={16} />
+                  )}
+                </button>
               </div>
             ))}
+
+            {products.length === 0 && (
+              <p className="text-center text-xs text-gray-500 py-10">
+                Belum ada produk. Tekan tombol Tambah untuk mulai mengisi katalog.
+              </p>
+            )}
           </div>
         )}
         {tab === 'categories' && (
@@ -100,7 +149,9 @@ export function AdminDashboardView({
         {tab === 'settings' && (
           <div className="text-center py-10">
             <Settings size={40} className="mx-auto text-gray-300 mb-3" />
-            <p className="text-sm text-gray-600 mb-4">Ubah banner promo, nama toko, dan lokasi.</p>
+            <p className="text-sm text-gray-600 mb-4">
+              Ubah banner promo, nama toko, nomor WhatsApp, dan password admin.
+            </p>
             <button
               onClick={() => onNavigate('admin_settings')}
               className="bg-gray-800 text-white px-4 py-2 rounded-md font-bold text-sm shadow-md"

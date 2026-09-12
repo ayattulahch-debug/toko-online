@@ -7,13 +7,26 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product, onClick }: ProductCardProps) {
+  const thumbnail = product.images[0]?.thumbUrl ?? ''
+
   return (
     <div
       className="bg-white relative flex flex-col cursor-pointer hover:-translate-y-0.5 transition-transform"
       onClick={onClick}
     >
       <div className="aspect-square bg-gray-200 relative overflow-hidden">
-        <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover" />
+        {thumbnail === '' ? (
+          <div className="w-full h-full flex items-center justify-center text-[10px] text-gray-400">
+            Tanpa foto
+          </div>
+        ) : (
+          <img
+            src={thumbnail}
+            alt={product.name}
+            loading="lazy"
+            className="w-full h-full object-cover"
+          />
+        )}
         <div className="absolute top-0 left-0 bg-[#ee4d2d] text-white text-[10px] font-bold px-1 py-0.5 rounded-br-md">
           Star+
         </div>

@@ -1,0 +1,59 @@
+name: Build & Deploy
+
+# Setiap push ke branch utama, situs di-build ulang lalu hasilnya didorong ke
+# branch `deploy`. cPanel Zenhosta cukup menarik branch itu lewat menu
+# Git Version Control (cPanel tidak bisa menjalankan `npm run build` sendiri).
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        # --include=dev karena devDependencies berisi vite dan typescript.
+        run: npm ci --include=dev
+
+      - name: Build
+        run: npm run build
+
+      - name: Susun folder publik
+        run: |
+          set -e
+          rm -rf publish
+          mkdir -p publish/api publish/uploads/produk
+          cp -R dist/. publish/
+          cp api/*.php publish/api/
+          touch publish/uploads/produk/.gitkeep
+
+      - name: Push ke branch deploy
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          cd publish
+          git init -q -b deploy
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "build: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          git push -f "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" deploy:deploy
