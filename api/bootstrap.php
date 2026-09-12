@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 const TOKEN_LIFETIME_DAYS = 14;
 const MAX_IMAGES_PER_PRODUCT = 5;
-const UPLOAD_URL_PREFIX = '/uploads/produk/';
+// Sengaja tanpa garis miring di depan supaya URL gambar tetap benar baik saat
+// aplikasi disajikan dari akar domain maupun dari subfolder.
+const UPLOAD_URL_PREFIX = 'uploads/produk/';
 
 function config(): array
 {

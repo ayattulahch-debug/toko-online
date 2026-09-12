@@ -1,6 +1,8 @@
 import type { Catalog, Category, Product, ProductImage, StoreSettings } from './types'
 
-const BASE = import.meta.env.VITE_API_BASE ?? '/api'
+// Diturunkan dari base Vite ('./') supaya panggilan API tetap mengarah ke
+// folder yang benar, baik di akar domain maupun di subfolder.
+const BASE = import.meta.env.VITE_API_BASE ?? `${import.meta.env.BASE_URL}api`
 const TOKEN_KEY = 'toko.token'
 
 export function getToken(): string | null {
