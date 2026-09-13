@@ -1,8 +1,12 @@
 name: Build & Deploy
 
-# Setiap push ke branch utama, situs di-build ulang lalu hasilnya didorong ke
-# branch `deploy`. cPanel Zenhosta cukup menarik branch itu lewat menu
-# Git Version Control (cPanel tidak bisa menjalankan `npm run build` sendiri).
+# Setiap push ke branch utama, situs di-build ulang lalu hasilnya ditumpuk ke
+# branch `deploy`. cPanel Zenhosta menarik branch itu lewat menu Git Version
+# Control (cPanel tidak bisa menjalankan `npm run build` sendiri).
+#
+# PENTING: commit baru selalu dibuat DI ATAS branch `deploy` yang sudah ada,
+# sehingga cPanel selalu bisa fast-forward saat "Update from Remote". Membuat
+# riwayat baru dari nol akan membuat branch bercabang dan cPanel menolak.
 
 on:
   push:
@@ -20,7 +24,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout kode sumber
         uses: actions/checkout@v4
 
       - name: Setup Node
@@ -36,24 +40,46 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Susun folder publik
-        run: |
-          set -e
-          rm -rf publish
-          mkdir -p publish/api publish/uploads/produk
-          cp -R dist/. publish/
-          cp api/*.php publish/api/
-          touch publish/uploads/produk/.gitkeep
-
-      - name: Push ke branch deploy
+      - name: Siapkan folder publik
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -e
+          REMOTE="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          rm -rf publish
+
+          if git clone -q --branch deploy --single-branch "$REMOTE" publish 2>/dev/null; then
+            echo "Melanjutkan riwayat branch deploy yang sudah ada."
+          else
+            echo "Branch deploy belum ada — membuat riwayat baru."
+            mkdir -p publish
+            git -C publish init -q -b deploy
+            git -C publish remote add origin "$REMOTE"
+          fi
+
+      - name: Susun isi situs
+        run: |
+          set -e
           cd publish
-          git init -q -b deploy
+          find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          cp -R ../dist/. .
+          mkdir -p api uploads/produk
+          cp ../api/*.php api/
+          touch uploads/produk/.gitkeep
+
+      - name: Commit dan push
+        run: |
+          set -e
+          cd publish
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
+
+          if git diff --cached --quiet; then
+            echo "Isi situs tidak berubah — tidak ada yang di-push."
+            exit 0
+          fi
+
           git commit -q -m "build: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          git push -f "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" deploy:deploy
+          git push -q origin HEAD:deploy
+          echo "Branch deploy diperbarui."
