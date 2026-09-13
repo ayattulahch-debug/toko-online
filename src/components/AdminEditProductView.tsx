@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
-import { Check, ChevronLeft, Loader2, Trash2, Upload } from 'lucide-react'
+import { Check, ChevronLeft, Loader2, Plus, Trash2, Upload } from 'lucide-react'
 import { uploadImage } from '../api'
 import { compressImage } from '../lib/image'
 import type { Product, ProductForm, ProductImage } from '../types'
@@ -8,9 +8,15 @@ import type { Product, ProductForm, ProductImage } from '../types'
 type EditableField = 'name' | 'price' | 'originalPrice' | 'description'
 
 const MAX_IMAGES = 5
+const MAX_VARIANTS = 20
 
 interface DraftImage extends ProductImage {
   previewUrl?: string
+}
+
+interface DraftVariant {
+  label: string
+  price: string
 }
 
 interface AdminEditProductViewProps {
@@ -30,6 +36,9 @@ function toForm(product: Product): ProductForm {
 export function AdminEditProductView({ product, onSave, onCancel }: AdminEditProductViewProps) {
   const [formData, setFormData] = useState<ProductForm>(() => toForm(product))
   const [images, setImages] = useState<DraftImage[]>(() => product.images.map((image) => ({ ...image })))
+  const [variants, setVariants] = useState<DraftVariant[]>(() =>
+    product.variants.map((variant) => ({ label: variant.label, price: String(variant.price) })),
+  )
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -71,8 +80,29 @@ export function AdminEditProductView({ product, onSave, onCancel }: AdminEditPro
     }
   }
 
+  const addVariant = () => {
+    setVariants((prev) => [...prev, { label: '', price: '' }])
+  }
+
+  const changeVariant = (index: number, field: keyof DraftVariant, value: string) => {
+    setVariants((prev) => prev.map((variant, i) => (i === index ? { ...variant, [field]: value } : variant)))
+  }
+
+  const removeVariant = (index: number) => {
+    setVariants((prev) => prev.filter((_, i) => i !== index))
+  }
+
   const readyImages = images.filter((image) => image.url !== '')
-  const canSubmit = images.length > 0 && images.length === readyImages.length && !uploading && !saving
+  const filledVariants = variants.filter(
+    (variant) => variant.label.trim() !== '' || variant.price.trim() !== '',
+  )
+  const hasNamelessVariant = filledVariants.some((variant) => variant.label.trim() === '')
+  const canSubmit =
+    images.length > 0 &&
+    images.length === readyImages.length &&
+    !hasNamelessVariant &&
+    !uploading &&
+    !saving
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -89,6 +119,10 @@ export function AdminEditProductView({ product, onSave, onCancel }: AdminEditPro
         originalPrice: formData.originalPrice === '' ? null : Number(formData.originalPrice),
         description: formData.description,
         images: readyImages.map(({ url, thumbUrl }) => ({ url, thumbUrl })),
+        variants: filledVariants.map((variant) => ({
+          label: variant.label.trim(),
+          price: Number(variant.price) || 0,
+        })),
       })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Gagal menyimpan produk.')
@@ -208,6 +242,67 @@ export function AdminEditProductView({ product, onSave, onCancel }: AdminEditPro
               className="w-full border border-gray-300 rounded-md px-3 py-2 mt-1 text-sm outline-none focus:border-[#ee4d2d]"
             />
           </div>
+        </div>
+
+        <div className="bg-white p-4 rounded-md shadow-sm border border-gray-200 mt-4">
+          <div className="flex items-center justify-between border-b pb-2 mb-3">
+            <h2 className="text-sm font-bold text-gray-800">Varian Produk</h2>
+            {variants.length < MAX_VARIANTS && (
+              <button
+                type="button"
+                onClick={addVariant}
+                className="bg-green-500 text-white px-2 py-1 rounded text-[11px] font-bold flex items-center gap-1 active:bg-green-600"
+              >
+                <Plus size={12} /> Tambah Varian
+              </button>
+            )}
+          </div>
+
+          {variants.length === 0 ? (
+            <p className="text-xs text-gray-500">
+              Kosongkan kalau produk ini hanya punya satu harga. Isi kalau ada pilihan seperti
+              &ldquo;Hanya Plakat&rdquo; atau &ldquo;Plakat + Box 5mm&rdquo;.
+            </p>
+          ) : (
+            <>
+              <div className="space-y-2">
+                {variants.map((variant, index) => (
+                  <div key={index} className="flex gap-2 items-center">
+                    <input
+                      type="text"
+                      value={variant.label}
+                      onChange={(e) => changeVariant(index, 'label', e.target.value)}
+                      placeholder="Nama varian"
+                      className="flex-1 min-w-0 border border-gray-300 rounded-md px-3 py-2 text-xs outline-none focus:border-[#ee4d2d]"
+                    />
+                    <input
+                      type="number"
+                      min={0}
+                      value={variant.price}
+                      onChange={(e) => changeVariant(index, 'price', e.target.value)}
+                      placeholder="Harga"
+                      className="w-24 border border-gray-300 rounded-md px-2 py-2 text-xs outline-none focus:border-[#ee4d2d]"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeVariant(index)}
+                      className="p-2 bg-red-50 text-red-500 rounded-md active:bg-red-100"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[10px] text-gray-400 mt-3">
+                Kalau varian diisi, harga pada kolom &ldquo;Harga&rdquo; di atas diabaikan — yang
+                dipakai adalah harga tiap varian. Harga coret juga tidak ditampilkan.
+              </p>
+            </>
+          )}
+
+          {hasNamelessVariant && (
+            <p className="text-xs text-red-500 mt-2">Setiap varian harus punya nama.</p>
+          )}
         </div>
 
         {error !== null && (

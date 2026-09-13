@@ -21,9 +21,12 @@ interface ProductDetailViewProps {
 
 export function ProductDetailView({ product, storeSettings, onBack, onStoreClick }: ProductDetailViewProps) {
   const [currentImgIdx, setCurrentImgIdx] = useState(0)
+  const [variantIdx, setVariantIdx] = useState(0)
 
   const imageCount = product.images.length
   const currentImage = product.images[currentImgIdx]?.url ?? ''
+  const selectedVariant = product.variants[variantIdx] ?? null
+  const displayPrice = selectedVariant?.price ?? product.price
 
   const nextImg = () => setCurrentImgIdx((prev) => (prev === imageCount - 1 ? 0 : prev + 1))
   const prevImg = () => setCurrentImgIdx((prev) => (prev === 0 ? imageCount - 1 : prev - 1))
@@ -35,8 +38,19 @@ export function ProductDetailView({ product, storeSettings, onBack, onStoreClick
       return
     }
 
-    const message = `Halo, saya tertarik untuk membeli produk ini dari katalog Anda:\n\n*${product.name}*\nHarga: ${formatRp(product.price)}\n\nApakah stoknya masih tersedia?`
-    window.open(`https://wa.me/${number}?text=${encodeURIComponent(message)}`, '_blank')
+    const lines = [
+      'Halo, saya tertarik untuk membeli produk ini dari katalog Anda:',
+      '',
+      `*${product.name}*`,
+    ]
+
+    if (selectedVariant !== null) {
+      lines.push(`Varian: ${selectedVariant.label}`)
+    }
+
+    lines.push(`Harga: ${formatRp(displayPrice)}`, '', 'Apakah stoknya masih tersedia?')
+
+    window.open(`https://wa.me/${number}?text=${encodeURIComponent(lines.join('\n'))}`, '_blank')
   }
 
   return (
@@ -96,8 +110,8 @@ export function ProductDetailView({ product, storeSettings, onBack, onStoreClick
 
       <div className="bg-white p-3 mb-2 shadow-sm">
         <div className="text-[#ee4d2d] text-2xl font-bold flex items-center gap-2">
-          {formatRp(product.price)}
-          {product.originalPrice ? (
+          {formatRp(displayPrice)}
+          {selectedVariant === null && product.originalPrice ? (
             <span className="text-gray-400 text-sm line-through font-normal">
               {formatRp(product.originalPrice)}
             </span>
@@ -118,6 +132,33 @@ export function ProductDetailView({ product, storeSettings, onBack, onStoreClick
           <div>{formatSold(product.sold)} Terjual</div>
         </div>
       </div>
+
+      {product.variants.length > 0 && (
+        <div className="bg-white p-3 mb-2 shadow-sm">
+          <h2 className="text-sm font-bold text-gray-800 mb-3 border-b pb-2">Pilih Varian</h2>
+          <div className="flex flex-col gap-2">
+            {product.variants.map((variant, index) => {
+              const active = index === variantIdx
+
+              return (
+                <button
+                  key={variant.label}
+                  type="button"
+                  onClick={() => setVariantIdx(index)}
+                  className={`flex items-center justify-between gap-2 border rounded-md px-3 py-2 text-left text-xs ${
+                    active
+                      ? 'border-[#ee4d2d] bg-red-50 text-[#ee4d2d] font-semibold'
+                      : 'border-gray-200 bg-white text-gray-700'
+                  }`}
+                >
+                  <span>{variant.label}</span>
+                  <span className="whitespace-nowrap">{formatRp(variant.price)}</span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="bg-white p-3 mb-2 shadow-sm flex items-center gap-3">
         <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center text-gray-500 overflow-hidden border border-gray-300">

@@ -30,6 +30,22 @@ foreach ($imageRows as $row) {
     ];
 }
 
+$variantRows = db()->query(
+    'SELECT pv.product_id, pv.label, pv.price
+     FROM product_variants pv
+     INNER JOIN products p ON p.id = pv.product_id
+     WHERE p.is_active = 1
+     ORDER BY pv.product_id ASC, pv.sort_order ASC, pv.id ASC'
+)->fetchAll();
+
+$variantsByProduct = [];
+foreach ($variantRows as $row) {
+    $variantsByProduct[(int) $row['product_id']][] = [
+        'label' => (string) $row['label'],
+        'price' => (int) $row['price'],
+    ];
+}
+
 $products = [];
 foreach ($productRows as $row) {
     $id = (int) $row['id'];
@@ -43,6 +59,7 @@ foreach ($productRows as $row) {
         'rating' => (float) $row['rating'],
         'description' => (string) $row['description'],
         'images' => $imagesByProduct[$id] ?? [],
+        'variants' => $variantsByProduct[$id] ?? [],
     ];
 }
 

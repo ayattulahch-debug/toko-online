@@ -1,5 +1,5 @@
 import type { Product } from '../types'
-import { formatRp, formatSold } from '../utils'
+import { formatRp, formatSold, priceRange } from '../utils'
 
 interface ProductCardProps {
   product: Product
@@ -8,6 +8,8 @@ interface ProductCardProps {
 
 export function ProductCard({ product, onClick }: ProductCardProps) {
   const thumbnail = product.images[0]?.thumbUrl ?? ''
+  const { min, max } = priceRange(product)
+  const hasRange = min !== max
 
   return (
     <div
@@ -38,9 +40,15 @@ export function ProductCard({ product, onClick }: ProductCardProps) {
             Cashback XTRA
           </div>
         </div>
-        <div className="mt-2 flex items-center justify-between">
-          <span className="text-[#ee4d2d] font-semibold text-sm">{formatRp(product.price)}</span>
-          <span className="text-[10px] text-gray-500">{formatSold(product.sold)} Terjual</span>
+        <div className="mt-2 flex items-center justify-between gap-1">
+          <span
+            className={`text-[#ee4d2d] font-semibold ${hasRange ? 'text-[11px]' : 'text-sm'}`}
+          >
+            {hasRange ? `${formatRp(min)} - ${formatRp(max)}` : formatRp(min)}
+          </span>
+          <span className="text-[10px] text-gray-500 whitespace-nowrap">
+            {formatSold(product.sold)} Terjual
+          </span>
         </div>
       </div>
     </div>

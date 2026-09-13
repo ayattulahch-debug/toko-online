@@ -3,6 +3,11 @@ export interface ProductImage {
   thumbUrl: string
 }
 
+export interface ProductVariant {
+  label: string
+  price: number
+}
+
 export interface Product {
   id: number
   name: string
@@ -13,6 +18,7 @@ export interface Product {
   rating: number
   images: ProductImage[]
   description: string
+  variants: ProductVariant[]
 }
 
 export interface ProductForm extends Omit<Product, 'price' | 'originalPrice'> {

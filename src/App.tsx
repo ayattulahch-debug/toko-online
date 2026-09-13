@@ -30,6 +30,7 @@ const NEW_PRODUCT: Product = {
   rating: 5,
   images: [],
   description: '',
+  variants: [],
 }
 
 export default function App() {
