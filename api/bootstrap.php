@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 const TOKEN_LIFETIME_DAYS = 14;
 const MAX_IMAGES_PER_PRODUCT = 5;
-const UPLOAD_URL_PREFIX = '/uploads/produk/';
+// Sengaja tanpa garis miring di depan supaya URL gambar tetap benar baik saat
+// aplikasi disajikan dari akar domain maupun dari subfolder.
+const UPLOAD_URL_PREFIX = 'uploads/produk/';
 
 function config(): array
 {
@@ -67,6 +69,11 @@ function json_out(mixed $data, int $status = 200): void
 {
     http_response_code($status);
     header('Content-Type: application/json; charset=utf-8');
+
+    // Sebagian hosting memakai serialize_precision=17 sehingga rating 4.9
+    // dikirim sebagai 4.9000000000000004. -1 memaksa bentuk terpendek.
+    ini_set('serialize_precision', '-1');
+
     echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit;
 }
