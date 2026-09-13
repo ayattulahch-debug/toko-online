@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import {
   ChevronLeft,
-  Crown,
   Home as HomeIcon,
   MapPin,
   MessageSquare,
@@ -9,14 +8,14 @@ import {
   Settings,
   Star,
   Store,
-  Tag,
 } from 'lucide-react'
-import type { Product, SortFilter, StoreSettings } from '../types'
+import type { Category, Product, StoreSettings } from '../types'
 import { ProductCard } from './ProductCard'
 
 interface StoreViewProps {
   products: Product[]
   storeSettings: StoreSettings
+  categories: Category[]
   isAdmin: boolean
   onProductClick: (product: Product) => void
   onHomeClick: () => void
@@ -26,21 +25,25 @@ interface StoreViewProps {
 export function StoreView({
   products,
   storeSettings,
+  categories,
   isAdmin,
   onProductClick,
   onHomeClick,
   onAdminClick,
 }: StoreViewProps) {
   const [searchQuery, setSearchQuery] = useState('')
-  const [storeFilter, setStoreFilter] = useState<SortFilter>('rekomendasi')
+  const [selectedCategory, setSelectedCategory] = useState<number | null>(null)
+
+  // Kategori yang tampil di bilah bawah, diatur dari menu Pengaturan.
+  const bottomCategories = storeSettings.bottomCategoryIds
+    .map((id) => categories.find((category) => category.id === id))
+    .filter((category): category is Category => category !== undefined)
 
   const filteredProducts = products
+    .filter((product) =>
+      selectedCategory === null ? true : product.categoryIds.includes(selectedCategory),
+    )
     .filter((product) => product.name.toLowerCase().includes(searchQuery.toLowerCase()))
-    .sort((a, b) => {
-      if (storeFilter === 'termurah') return a.price - b.price
-      if (storeFilter === 'premium') return b.price - a.price
-      return a.id - b.id
-    })
 
   return (
     <div className="pb-16 bg-gray-100 min-h-screen">
@@ -140,34 +143,40 @@ export function StoreView({
       </div>
 
       <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white border-t border-gray-200 flex justify-around items-center py-2 text-[10px] text-gray-500 z-40 shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
-        <div className="flex flex-col items-center cursor-pointer hover:text-[#ee4d2d]" onClick={onHomeClick}>
+        <button
+          type="button"
+          onClick={onHomeClick}
+          className="flex flex-col items-center hover:text-[#ee4d2d]"
+        >
           <HomeIcon size={20} />
           <span>Rekomendasi</span>
-        </div>
-        <div
-          className={`flex flex-col items-center cursor-pointer ${storeFilter === 'termurah' ? 'text-[#ee4d2d]' : 'hover:text-[#ee4d2d]'}`}
-          onClick={() => {
-            setStoreFilter('termurah')
-            window.scrollTo({ top: 300, behavior: 'smooth' })
-          }}
-        >
-          <Tag size={20} />
-          <span>Termurah</span>
-        </div>
-        <div
-          className={`flex flex-col items-center cursor-pointer ${storeFilter === 'premium' ? 'text-[#ee4d2d]' : 'hover:text-[#ee4d2d]'}`}
-          onClick={() => {
-            setStoreFilter('premium')
-            window.scrollTo({ top: 300, behavior: 'smooth' })
-          }}
-        >
-          <Crown size={20} />
-          <span>Premium</span>
-        </div>
-        <div className="flex flex-col items-center text-[#ee4d2d]">
+        </button>
+
+        {bottomCategories.map((category) => {
+          const active = category.id === selectedCategory
+
+          return (
+            <button
+              key={category.id}
+              type="button"
+              onClick={() => {
+                setSelectedCategory(active ? null : category.id)
+                window.scrollTo({ top: 300, behavior: 'smooth' })
+              }}
+              className={`flex flex-col items-center max-w-[70px] ${
+                active ? 'text-[#ee4d2d]' : 'hover:text-[#ee4d2d]'
+              }`}
+            >
+              <span className="text-[18px] leading-5">{category.icon}</span>
+              <span className="truncate w-full">{category.name}</span>
+            </button>
+          )
+        })}
+
+        <button type="button" className="flex flex-col items-center text-[#ee4d2d]">
           <Store size={20} />
           <span>Toko Saya</span>
-        </div>
+        </button>
       </div>
     </div>
   )

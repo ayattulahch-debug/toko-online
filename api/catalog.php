@@ -87,8 +87,17 @@ foreach (db()->query('SELECT id, icon, name FROM categories ORDER BY sort_order 
 }
 
 $settingsRow = db()->query(
-    'SELECT name, location, promo_text, banner, whatsapp_number FROM store_settings WHERE id = 1'
+    'SELECT name, location, promo_text, banner, whatsapp_number, bottom_category_ids
+     FROM store_settings WHERE id = 1'
 )->fetch();
+
+$bottomCategoryIds = [];
+foreach (explode(',', (string) ($settingsRow['bottom_category_ids'] ?? '')) as $rawId) {
+    $value = (int) trim($rawId);
+    if ($value > 0) {
+        $bottomCategoryIds[] = $value;
+    }
+}
 
 json_out([
     'products' => $products,
@@ -99,5 +108,6 @@ json_out([
         'promoText' => (string) ($settingsRow['promo_text'] ?? ''),
         'banner' => (string) ($settingsRow['banner'] ?? ''),
         'whatsappNumber' => (string) ($settingsRow['whatsapp_number'] ?? ''),
+        'bottomCategoryIds' => $bottomCategoryIds,
     ],
 ]);

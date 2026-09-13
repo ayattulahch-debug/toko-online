@@ -13,6 +13,10 @@ function normalizeCatalog(catalog: Catalog): Catalog {
       variants: product.variants ?? [],
       categoryIds: product.categoryIds ?? [],
     })),
+    settings: {
+      ...catalog.settings,
+      bottomCategoryIds: catalog.settings.bottomCategoryIds ?? [],
+    },
   }
 }
 

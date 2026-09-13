@@ -3,10 +3,13 @@ import type { ChangeEvent, FormEvent } from 'react'
 import { Check, ChevronLeft, KeyRound, Loader2, Upload } from 'lucide-react'
 import { uploadImage } from '../api'
 import { compressImage } from '../lib/image'
-import type { StoreSettings } from '../types'
+import type { Category, StoreSettings } from '../types'
+
+const MAX_BOTTOM_CATEGORIES = 3
 
 interface AdminSettingsViewProps {
   storeSettings: StoreSettings
+  categories: Category[]
   onSave: (settings: StoreSettings) => Promise<void>
   onChangePassword: (oldPassword: string, newPassword: string) => Promise<void>
   onBack: () => void
@@ -14,6 +17,7 @@ interface AdminSettingsViewProps {
 
 export function AdminSettingsView({
   storeSettings,
+  categories,
   onSave,
   onChangePassword,
   onBack,
@@ -33,6 +37,20 @@ export function AdminSettingsView({
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
     setSettings((prev) => ({ ...prev, [name]: value }))
+  }
+
+  const toggleBottomCategory = (id: number) => {
+    setSettings((prev) => {
+      if (prev.bottomCategoryIds.includes(id)) {
+        return { ...prev, bottomCategoryIds: prev.bottomCategoryIds.filter((item) => item !== id) }
+      }
+
+      if (prev.bottomCategoryIds.length >= MAX_BOTTOM_CATEGORIES) {
+        return prev
+      }
+
+      return { ...prev, bottomCategoryIds: [...prev.bottomCategoryIds, id] }
+    })
   }
 
   const handleBannerUpload = async (e: ChangeEvent<HTMLInputElement>) => {
@@ -194,6 +212,55 @@ export function AdminSettingsView({
         {error !== null && (
           <p className="text-xs text-red-500 bg-red-50 border border-red-200 rounded-md p-3">{error}</p>
         )}
+
+        <div className="bg-white p-4 rounded-md shadow-sm border border-gray-200">
+          <h2 className="text-sm font-bold text-gray-800 border-b pb-2 mb-3">Bilah Bawah</h2>
+
+          {categories.length === 0 ? (
+            <p className="text-xs text-gray-500">
+              Belum ada kategori. Tambahkan dulu lewat menu <strong>Kategori</strong> di dashboard.
+            </p>
+          ) : (
+            <>
+              <p className="text-xs text-gray-500 mb-3">
+                Pilih kategori yang ingin tampil di bilah bawah, maksimal {MAX_BOTTOM_CATEGORIES}.
+                Menekannya di aplikasi akan menyaring produk.
+              </p>
+
+              <div className="grid grid-cols-2 gap-2">
+                {categories.map((category) => {
+                  const checked = settings.bottomCategoryIds.includes(category.id)
+                  const penuh =
+                    !checked && settings.bottomCategoryIds.length >= MAX_BOTTOM_CATEGORIES
+
+                  return (
+                    <label
+                      key={category.id}
+                      className={`flex items-center gap-2 border rounded-md px-2 py-2 text-xs ${
+                        checked
+                          ? 'border-[#ee4d2d] bg-red-50 text-[#ee4d2d] font-semibold'
+                          : penuh
+                            ? 'border-gray-100 bg-gray-50 text-gray-400'
+                            : 'border-gray-200 bg-white text-gray-700 cursor-pointer'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        className="accent-[#ee4d2d]"
+                        checked={checked}
+                        disabled={penuh}
+                        onChange={() => toggleBottomCategory(category.id)}
+                      />
+                      <span className="truncate">
+                        {category.icon} {category.name}
+                      </span>
+                    </label>
+                  )
+                })}
+              </div>
+            </>
+          )}
+        </div>
 
         <div className="bg-white p-4 rounded-md shadow-sm border border-gray-200">
           <h2 className="text-sm font-bold text-gray-800 border-b pb-2 mb-3 flex items-center gap-2">

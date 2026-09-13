@@ -20,7 +20,7 @@ import { ProductDetailView } from './components/ProductDetailView'
 import { StoreView } from './components/StoreView'
 import { useCatalog } from './hooks/useCatalog'
 import { canGoBack, navigate, useRoute } from './lib/router'
-import type { Category, Product, SortFilter, StoreSettings } from './types'
+import type { Category, Product, StoreSettings } from './types'
 
 const NEW_PRODUCT: Product = {
   id: 0,
@@ -38,7 +38,6 @@ const NEW_PRODUCT: Product = {
 export default function App() {
   const { data, loading, error, reload } = useCatalog()
   const [token, setTokenState] = useState<string | null>(() => getToken())
-  const [activeFilter, setActiveFilter] = useState<SortFilter>('rekomendasi')
   const route = useRoute()
 
   const isAdmin = token !== null
@@ -163,6 +162,7 @@ export default function App() {
           <StoreView
             products={data.products}
             storeSettings={data.settings}
+            categories={data.categories}
             isAdmin={isAdmin}
             onProductClick={goToProduct}
             onHomeClick={() => navigate({ name: 'home' })}
@@ -229,6 +229,7 @@ export default function App() {
         return (
           <AdminSettingsView
             storeSettings={data.settings}
+            categories={data.categories}
             onSave={handleSaveSettings}
             onChangePassword={handleChangePassword}
             onBack={() => navigate({ name: 'admin_dashboard' })}
@@ -241,8 +242,6 @@ export default function App() {
             products={data.products}
             storeSettings={data.settings}
             categories={data.categories}
-            activeFilter={activeFilter}
-            onFilterChange={setActiveFilter}
             onProductClick={goToProduct}
             onStoreClick={() => navigate({ name: 'store' })}
           />

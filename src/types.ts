@@ -39,6 +39,7 @@ export interface StoreSettings {
   promoText: string
   banner: string
   whatsappNumber: string
+  bottomCategoryIds: number[]
 }
 
 export interface Catalog {
@@ -46,5 +47,3 @@ export interface Catalog {
   categories: Category[]
   settings: StoreSettings
 }
-
-export type SortFilter = 'rekomendasi' | 'termurah' | 'premium'

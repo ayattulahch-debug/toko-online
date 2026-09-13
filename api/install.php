@@ -188,6 +188,7 @@ $tables = [
         promo_text VARCHAR(255) NOT NULL,
         banner VARCHAR(255) NOT NULL,
         whatsapp_number VARCHAR(20) NOT NULL,
+        bottom_category_ids VARCHAR(255) NOT NULL DEFAULT '',
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     SQL,

@@ -1,14 +1,12 @@
 import { useState } from 'react'
-import { Crown, Home as HomeIcon, MessageSquare, Search, ShoppingCart, Store, Tag, X } from 'lucide-react'
-import type { Category, Product, SortFilter, StoreSettings } from '../types'
+import { Home as HomeIcon, MessageSquare, Search, ShoppingCart, Store, X } from 'lucide-react'
+import type { Category, Product, StoreSettings } from '../types'
 import { ProductCard } from './ProductCard'
 
 interface HomeViewProps {
   products: Product[]
   storeSettings: StoreSettings
   categories: Category[]
-  activeFilter: SortFilter
-  onFilterChange: (filter: SortFilter) => void
   onProductClick: (product: Product) => void
   onStoreClick: () => void
 }
@@ -17,8 +15,6 @@ export function HomeView({
   products,
   storeSettings,
   categories,
-  activeFilter,
-  onFilterChange,
   onProductClick,
   onStoreClick,
 }: HomeViewProps) {
@@ -26,6 +22,11 @@ export function HomeView({
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null)
 
   const activeCategory = categories.find((category) => category.id === selectedCategory) ?? null
+
+  // Kategori yang tampil di bilah bawah, diatur dari menu Pengaturan.
+  const bottomCategories = storeSettings.bottomCategoryIds
+    .map((id) => categories.find((category) => category.id === id))
+    .filter((category): category is Category => category !== undefined)
 
   const filteredProducts = products
     .filter((product) =>
@@ -36,11 +37,6 @@ export function HomeView({
         product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         product.description.toLowerCase().includes(searchQuery.toLowerCase()),
     )
-    .sort((a, b) => {
-      if (activeFilter === 'termurah') return a.price - b.price
-      if (activeFilter === 'premium') return b.price - a.price
-      return a.id - b.id
-    })
 
   return (
     <div className="pb-16">
@@ -137,43 +133,49 @@ export function HomeView({
       </div>
 
       <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white border-t border-gray-200 flex justify-around items-center py-2 text-[10px] text-gray-500 z-40">
-        <div
-          className={`flex flex-col items-center cursor-pointer ${activeFilter === 'rekomendasi' ? 'text-[#ee4d2d]' : 'hover:text-[#ee4d2d]'}`}
+        <button
+          type="button"
           onClick={() => {
-            onFilterChange('rekomendasi')
+            setSelectedCategory(null)
             window.scrollTo(0, 0)
           }}
+          className={`flex flex-col items-center ${
+            selectedCategory === null ? 'text-[#ee4d2d]' : 'hover:text-[#ee4d2d]'
+          }`}
         >
           <HomeIcon size={20} />
           <span>Rekomendasi</span>
-        </div>
+        </button>
 
-        <div
-          className={`flex flex-col items-center cursor-pointer ${activeFilter === 'termurah' ? 'text-[#ee4d2d]' : 'hover:text-[#ee4d2d]'}`}
-          onClick={() => {
-            onFilterChange('termurah')
-            window.scrollTo(0, 0)
-          }}
+        {bottomCategories.map((category) => {
+          const active = category.id === selectedCategory
+
+          return (
+            <button
+              key={category.id}
+              type="button"
+              onClick={() => {
+                setSelectedCategory(active ? null : category.id)
+                window.scrollTo(0, 0)
+              }}
+              className={`flex flex-col items-center max-w-[70px] ${
+                active ? 'text-[#ee4d2d]' : 'hover:text-[#ee4d2d]'
+              }`}
+            >
+              <span className="text-[18px] leading-5">{category.icon}</span>
+              <span className="truncate w-full">{category.name}</span>
+            </button>
+          )
+        })}
+
+        <button
+          type="button"
+          onClick={onStoreClick}
+          className="flex flex-col items-center hover:text-[#ee4d2d]"
         >
-          <Tag size={20} />
-          <span>Termurah</span>
-        </div>
-
-        <div
-          className={`flex flex-col items-center cursor-pointer ${activeFilter === 'premium' ? 'text-[#ee4d2d]' : 'hover:text-[#ee4d2d]'}`}
-          onClick={() => {
-            onFilterChange('premium')
-            window.scrollTo(0, 0)
-          }}
-        >
-          <Crown size={20} />
-          <span>Premium</span>
-        </div>
-
-        <div className="flex flex-col items-center cursor-pointer hover:text-[#ee4d2d]" onClick={onStoreClick}>
           <Store size={20} />
           <span>Toko Saya</span>
-        </div>
+        </button>
       </div>
     </div>
   )
