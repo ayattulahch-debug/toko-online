@@ -15,6 +15,11 @@ $location = trim((string) ($body['location'] ?? ''));
 $promoText = trim((string) ($body['promoText'] ?? ''));
 $banner = trim((string) ($body['banner'] ?? ''));
 $whatsappNumber = normalize_whatsapp((string) ($body['whatsappNumber'] ?? ''));
+$bottomCategoryIds = normalize_category_ids($body['bottomCategoryIds'] ?? null);
+
+if (count($bottomCategoryIds) > MAX_BOTTOM_CATEGORIES) {
+    json_error('Maksimal ' . MAX_BOTTOM_CATEGORIES . ' kategori untuk bilah bawah.');
+}
 
 if ($name === '') {
     json_error('Nama toko wajib diisi.');
@@ -36,22 +41,40 @@ if ($whatsappNumber === '' || strlen($whatsappNumber) < 10 || strlen($whatsappNu
 }
 
 $pdo = db();
+
+// Hanya kategori yang benar-benar ada yang disimpan, supaya pengaturan tidak
+// menyisakan rujukan ke kategori yang sudah dihapus.
+if ($bottomCategoryIds !== []) {
+    $placeholders = implode(',', array_fill(0, count($bottomCategoryIds), '?'));
+    $stmt = $pdo->prepare('SELECT id FROM categories WHERE id IN (' . $placeholders . ')');
+    $stmt->execute($bottomCategoryIds);
+    $bottomCategoryIds = array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
+}
+
 $stmt = $pdo->prepare('SELECT banner FROM store_settings WHERE id = 1');
 $stmt->execute();
 $oldBanner = (string) ($stmt->fetchColumn() ?: '');
 
 try {
     $stmt = $pdo->prepare(
-        'INSERT INTO store_settings (id, name, location, promo_text, banner, whatsapp_number)
-         VALUES (1, ?, ?, ?, ?, ?)
+        'INSERT INTO store_settings (id, name, location, promo_text, banner, whatsapp_number, bottom_category_ids)
+         VALUES (1, ?, ?, ?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE
             name = VALUES(name),
             location = VALUES(location),
             promo_text = VALUES(promo_text),
             banner = VALUES(banner),
-            whatsapp_number = VALUES(whatsapp_number)'
+            whatsapp_number = VALUES(whatsapp_number),
+            bottom_category_ids = VALUES(bottom_category_ids)'
     );
-    $stmt->execute([$name, $location, $promoText, $banner, $whatsappNumber]);
+    $stmt->execute([
+        $name,
+        $location,
+        $promoText,
+        $banner,
+        $whatsappNumber,
+        implode(',', $bottomCategoryIds),
+    ]);
 } catch (PDOException $e) {
     json_error('Gagal menyimpan pengaturan toko.', 500);
 }

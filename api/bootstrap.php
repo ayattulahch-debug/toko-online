@@ -5,6 +5,7 @@ declare(strict_types=1);
 const TOKEN_LIFETIME_DAYS = 14;
 const MAX_IMAGES_PER_PRODUCT = 5;
 const MAX_VARIANTS_PER_PRODUCT = 20;
+const MAX_BOTTOM_CATEGORIES = 3;
 // Sengaja tanpa garis miring di depan supaya URL gambar tetap benar baik saat
 // aplikasi disajikan dari akar domain maupun dari subfolder.
 const UPLOAD_URL_PREFIX = 'uploads/produk/';
@@ -93,6 +94,14 @@ const REQUIRED_TABLES = [
         SQL,
 ];
 
+// Kolom yang ditambahkan setelah tabelnya sudah terlanjur ada di server.
+const REQUIRED_COLUMNS = [
+    'store_settings.bottom_category_ids' => <<<'SQL'
+        ALTER TABLE store_settings
+        ADD COLUMN bottom_category_ids VARCHAR(255) NOT NULL DEFAULT ''
+        SQL,
+];
+
 function ensure_schema(PDO $pdo): void
 {
     static $checked = false;
@@ -122,6 +131,24 @@ function ensure_schema(PDO $pdo): void
         } catch (PDOException $e) {
             // Diamkan dulu; kalau hak akses kurang, errornya akan muncul jelas
             // saat tabel itu benar-benar dipakai.
+        }
+    }
+
+    foreach (REQUIRED_COLUMNS as $key => $sql) {
+        [$table, $column] = explode('.', $key, 2);
+
+        try {
+            $stmt = $pdo->prepare(
+                'SELECT COUNT(*) FROM information_schema.columns
+                 WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?'
+            );
+            $stmt->execute([$table, $column]);
+
+            if ((int) $stmt->fetchColumn() === 0) {
+                $pdo->exec($sql);
+            }
+        } catch (PDOException $e) {
+            // Sama seperti tabel: kegagalan di sini tidak boleh mematikan situs.
         }
     }
 }
