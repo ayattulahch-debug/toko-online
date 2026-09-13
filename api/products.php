@@ -83,6 +83,7 @@ if (mb_strlen($location) > 100) {
 
 $images = normalize_images($body['images'] ?? null);
 $variants = normalize_variants($body['variants'] ?? null);
+$categoryIds = normalize_category_ids($body['categoryIds'] ?? null);
 
 $pdo = db();
 $pdo->beginTransaction();
@@ -129,6 +130,23 @@ try {
     );
     foreach ($variants as $index => $variant) {
         $stmt->execute([$id, $variant['label'], $variant['price'], $index]);
+    }
+
+    // Hanya kategori yang benar-benar ada yang ditautkan, supaya data lama
+    // tidak menyisakan rujukan ke kategori yang sudah dihapus.
+    if ($categoryIds !== []) {
+        $placeholders = implode(',', array_fill(0, count($categoryIds), '?'));
+        $stmt = $pdo->prepare('SELECT id FROM categories WHERE id IN (' . $placeholders . ')');
+        $stmt->execute($categoryIds);
+        $categoryIds = array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
+    }
+
+    $stmt = $pdo->prepare('DELETE FROM product_categories WHERE product_id = ?');
+    $stmt->execute([$id]);
+
+    $stmt = $pdo->prepare('INSERT INTO product_categories (product_id, category_id) VALUES (?, ?)');
+    foreach ($categoryIds as $categoryId) {
+        $stmt->execute([$id, $categoryId]);
     }
 
     $pdo->commit();

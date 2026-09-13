@@ -82,6 +82,15 @@ const REQUIRED_TABLES = [
             CONSTRAINT fk_variants_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         SQL,
+    'product_categories' => <<<'SQL'
+        CREATE TABLE IF NOT EXISTS product_categories (
+            product_id INT NOT NULL,
+            category_id INT NOT NULL,
+            PRIMARY KEY (product_id, category_id),
+            CONSTRAINT fk_pc_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+            CONSTRAINT fk_pc_category FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        SQL,
 ];
 
 function ensure_schema(PDO $pdo): void
@@ -280,6 +289,27 @@ function normalize_images(mixed $images): array
     }
 
     return $result;
+}
+
+function normalize_category_ids(mixed $ids): array
+{
+    if ($ids === null) {
+        return [];
+    }
+
+    if (!is_array($ids)) {
+        json_error('Format data kategori produk tidak valid.');
+    }
+
+    $clean = [];
+    foreach ($ids as $id) {
+        $value = (int) $id;
+        if ($value > 0) {
+            $clean[$value] = true;
+        }
+    }
+
+    return array_keys($clean);
 }
 
 function normalize_variants(mixed $variants): array

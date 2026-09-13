@@ -172,6 +172,15 @@ $tables = [
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     SQL,
     <<<'SQL'
+    CREATE TABLE IF NOT EXISTS product_categories (
+        product_id INT NOT NULL,
+        category_id INT NOT NULL,
+        PRIMARY KEY (product_id, category_id),
+        CONSTRAINT fk_pc_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+        CONSTRAINT fk_pc_category FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    SQL,
+    <<<'SQL'
     CREATE TABLE IF NOT EXISTS store_settings (
         id TINYINT PRIMARY KEY,
         name VARCHAR(150) NOT NULL,
