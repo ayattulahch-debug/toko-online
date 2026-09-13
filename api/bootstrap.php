@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 const TOKEN_LIFETIME_DAYS = 14;
 const MAX_IMAGES_PER_PRODUCT = 5;
+const MAX_VARIANTS_PER_PRODUCT = 20;
 // Sengaja tanpa garis miring di depan supaya URL gambar tetap benar baik saat
 // aplikasi disajikan dari akar domain maupun dari subfolder.
 const UPLOAD_URL_PREFIX = 'uploads/produk/';
@@ -60,9 +61,60 @@ function db(): PDO
         } catch (PDOException $e) {
             json_error('Tidak dapat terhubung ke database. Periksa isi api/config.php.', 500);
         }
+
+        ensure_schema($pdo);
     }
 
     return $pdo;
+}
+
+// Tabel yang ditambahkan setelah instalasi awal. Dibuat otomatis saat pertama
+// diakses, karena cPanel tidak mengembalikan berkas yang sudah dihapus dari
+// server sehingga install.php tidak bisa diandalkan untuk menambah tabel.
+const REQUIRED_TABLES = [
+    'product_variants' => <<<'SQL'
+        CREATE TABLE IF NOT EXISTS product_variants (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            product_id INT NOT NULL,
+            label VARCHAR(150) NOT NULL,
+            price INT NOT NULL DEFAULT 0,
+            sort_order INT NOT NULL DEFAULT 0,
+            CONSTRAINT fk_variants_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        SQL,
+];
+
+function ensure_schema(PDO $pdo): void
+{
+    static $checked = false;
+
+    if ($checked) {
+        return;
+    }
+    $checked = true;
+
+    $names = array_keys(REQUIRED_TABLES);
+    $placeholders = implode(',', array_fill(0, count($names), '?'));
+
+    try {
+        $stmt = $pdo->prepare(
+            'SELECT table_name FROM information_schema.tables
+             WHERE table_schema = DATABASE() AND table_name IN (' . $placeholders . ')'
+        );
+        $stmt->execute($names);
+        $found = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    } catch (PDOException $e) {
+        return;
+    }
+
+    foreach (array_diff($names, $found) as $missing) {
+        try {
+            $pdo->exec(REQUIRED_TABLES[$missing]);
+        } catch (PDOException $e) {
+            // Diamkan dulu; kalau hak akses kurang, errornya akan muncul jelas
+            // saat tabel itu benar-benar dipakai.
+        }
+    }
 }
 
 function json_out(mixed $data, int $status = 200): void
@@ -225,6 +277,46 @@ function normalize_images(mixed $images): array
         }
 
         $result[] = ['url' => $url, 'thumbUrl' => $thumbUrl];
+    }
+
+    return $result;
+}
+
+function normalize_variants(mixed $variants): array
+{
+    if ($variants === null) {
+        return [];
+    }
+
+    if (!is_array($variants)) {
+        json_error('Format data varian tidak valid.');
+    }
+
+    if (count($variants) > MAX_VARIANTS_PER_PRODUCT) {
+        json_error('Maksimal ' . MAX_VARIANTS_PER_PRODUCT . ' varian per produk.');
+    }
+
+    $result = [];
+
+    foreach ($variants as $variant) {
+        if (!is_array($variant)) {
+            json_error('Format data varian tidak valid.');
+        }
+
+        $label = trim((string) ($variant['label'] ?? ''));
+        $price = (int) ($variant['price'] ?? 0);
+
+        if ($label === '') {
+            json_error('Nama varian tidak boleh kosong.');
+        }
+        if (mb_strlen($label) > 150) {
+            json_error('Nama varian terlalu panjang (maksimal 150 karakter).');
+        }
+        if ($price < 0) {
+            json_error('Harga varian tidak boleh negatif.');
+        }
+
+        $result[] = ['label' => $label, 'price' => $price];
     }
 
     return $result;

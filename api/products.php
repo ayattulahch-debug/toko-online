@@ -82,6 +82,7 @@ if (mb_strlen($location) > 100) {
 }
 
 $images = normalize_images($body['images'] ?? null);
+$variants = normalize_variants($body['variants'] ?? null);
 
 $pdo = db();
 $pdo->beginTransaction();
@@ -118,6 +119,16 @@ try {
     );
     foreach ($images as $index => $image) {
         $stmt->execute([$id, $image['url'], $image['thumbUrl'], $index]);
+    }
+
+    $stmt = $pdo->prepare('DELETE FROM product_variants WHERE product_id = ?');
+    $stmt->execute([$id]);
+
+    $stmt = $pdo->prepare(
+        'INSERT INTO product_variants (product_id, label, price, sort_order) VALUES (?, ?, ?, ?)'
+    );
+    foreach ($variants as $index => $variant) {
+        $stmt->execute([$id, $variant['label'], $variant['price'], $index]);
     }
 
     $pdo->commit();
