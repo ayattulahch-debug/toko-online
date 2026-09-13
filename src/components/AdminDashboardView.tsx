@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { ChevronLeft, Edit3, Layout, Loader2, LogOut, Plus, Settings, Trash2 } from 'lucide-react'
-import type { Product, View } from '../types'
+import type { Route } from '../lib/router'
+import type { Product } from '../types'
 import { formatRp } from '../utils'
 
 type DashboardTab = 'products' | 'categories' | 'settings'
@@ -11,7 +12,7 @@ interface AdminDashboardViewProps {
   onAddProduct: () => void
   onEditProduct: (product: Product) => void
   onDeleteProduct: (product: Product) => Promise<void>
-  onNavigate: (view: View) => void
+  onNavigate: (route: Route) => void
 }
 
 export function AdminDashboardView({
@@ -139,7 +140,7 @@ export function AdminDashboardView({
             <Layout size={40} className="mx-auto text-gray-300 mb-3" />
             <p className="text-sm text-gray-600 mb-4">Kelola ikon dan nama kategori di halaman utama.</p>
             <button
-              onClick={() => onNavigate('admin_categories')}
+              onClick={() => onNavigate({ name: 'admin_categories' })}
               className="bg-gray-800 text-white px-4 py-2 rounded-md font-bold text-sm shadow-md"
             >
               Buka Menu Kategori
@@ -153,7 +154,7 @@ export function AdminDashboardView({
               Ubah banner promo, nama toko, nomor WhatsApp, dan password admin.
             </p>
             <button
-              onClick={() => onNavigate('admin_settings')}
+              onClick={() => onNavigate({ name: 'admin_settings' })}
               className="bg-gray-800 text-white px-4 py-2 rounded-md font-bold text-sm shadow-md"
             >
               Buka Menu Tampilan
@@ -163,7 +164,7 @@ export function AdminDashboardView({
       </div>
       <div className="p-4 bg-white border-t border-gray-200">
         <button
-          onClick={() => onNavigate('store')}
+          onClick={() => onNavigate({ name: 'store' })}
           className="w-full bg-gray-100 text-gray-700 font-bold py-3 rounded-md active:bg-gray-200 flex items-center justify-center gap-2"
         >
           <ChevronLeft size={18} /> Kembali ke Toko

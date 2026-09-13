@@ -19,6 +19,7 @@ export interface Product {
   images: ProductImage[]
   description: string
   variants: ProductVariant[]
+  categoryIds: number[]
 }
 
 export interface ProductForm extends Omit<Product, 'price' | 'originalPrice'> {
@@ -47,13 +48,3 @@ export interface Catalog {
 }
 
 export type SortFilter = 'rekomendasi' | 'termurah' | 'premium'
-
-export type View =
-  | 'home'
-  | 'product'
-  | 'store'
-  | 'admin_login'
-  | 'admin_dashboard'
-  | 'admin_edit_product'
-  | 'admin_categories'
-  | 'admin_settings'

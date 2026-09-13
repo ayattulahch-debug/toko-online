@@ -9,6 +9,7 @@ import {
   Star,
   Store,
 } from 'lucide-react'
+import { productUrl } from '../lib/router'
 import type { Product, StoreSettings } from '../types'
 import { formatRp, formatSold } from '../utils'
 
@@ -48,9 +49,42 @@ export function ProductDetailView({ product, storeSettings, onBack, onStoreClick
       lines.push(`Varian: ${selectedVariant.label}`)
     }
 
-    lines.push(`Harga: ${formatRp(displayPrice)}`, '', 'Apakah stoknya masih tersedia?')
+    lines.push(
+      `Harga: ${formatRp(displayPrice)}`,
+      '',
+      `Link produk: ${productUrl(product.id)}`,
+      '',
+      'Apakah stoknya masih tersedia?',
+    )
 
     window.open(`https://wa.me/${number}?text=${encodeURIComponent(lines.join('\n'))}`, '_blank')
+  }
+
+  const handleShare = async () => {
+    const url = productUrl(product.id)
+
+    if (typeof navigator.share === 'function') {
+      try {
+        await navigator.share({
+          title: product.name,
+          text: `${product.name} — ${formatRp(displayPrice)}`,
+          url,
+        })
+        return
+      } catch (err) {
+        // Pengguna menutup menu share sendiri; tidak perlu pesan apa pun.
+        if (err instanceof Error && err.name === 'AbortError') {
+          return
+        }
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(url)
+      window.alert('Tautan produk disalin ke papan klip.')
+    } catch {
+      window.alert(`Tautan produk:\n${url}`)
+    }
   }
 
   return (
@@ -63,7 +97,10 @@ export function ProductDetailView({ product, storeSettings, onBack, onStoreClick
           <ChevronLeft size={24} />
         </button>
         <div className="flex gap-2">
-          <button className="w-8 h-8 rounded-full bg-black/40 text-white flex items-center justify-center backdrop-blur-sm">
+          <button
+            onClick={() => void handleShare()}
+            className="w-8 h-8 rounded-full bg-black/40 text-white flex items-center justify-center backdrop-blur-sm"
+          >
             <Share2 size={18} />
           </button>
           <button className="w-8 h-8 rounded-full bg-black/40 text-white flex items-center justify-center backdrop-blur-sm relative">

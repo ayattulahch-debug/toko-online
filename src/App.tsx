@@ -19,7 +19,8 @@ import { HomeView } from './components/HomeView'
 import { ProductDetailView } from './components/ProductDetailView'
 import { StoreView } from './components/StoreView'
 import { useCatalog } from './hooks/useCatalog'
-import type { Category, Product, SortFilter, StoreSettings, View } from './types'
+import { canGoBack, navigate, useRoute } from './lib/router'
+import type { Category, Product, SortFilter, StoreSettings } from './types'
 
 const NEW_PRODUCT: Product = {
   id: 0,
@@ -31,45 +32,22 @@ const NEW_PRODUCT: Product = {
   images: [],
   description: '',
   variants: [],
+  categoryIds: [],
 }
 
 export default function App() {
   const { data, loading, error, reload } = useCatalog()
   const [token, setTokenState] = useState<string | null>(() => getToken())
-  const [view, setView] = useState<View>('home')
-  const [detailProductId, setDetailProductId] = useState<number | null>(null)
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [activeFilter, setActiveFilter] = useState<SortFilter>('rekomendasi')
+  const route = useRoute()
 
   const isAdmin = token !== null
-
-  const goToProduct = (product: Product) => {
-    setDetailProductId(product.id)
-    setView('product')
-    window.scrollTo(0, 0)
-  }
-
-  const goToHome = () => {
-    setDetailProductId(null)
-    setView('home')
-    window.scrollTo(0, 0)
-  }
-
-  const goToStore = () => {
-    setView('store')
-    window.scrollTo(0, 0)
-  }
-
-  const goToAdmin = () => {
-    setView(isAdmin ? 'admin_dashboard' : 'admin_login')
-    window.scrollTo(0, 0)
-  }
 
   const handleLogin = async (username: string, password: string) => {
     const result = await login(username, password)
     setToken(result.token)
     setTokenState(result.token)
-    setView('admin_dashboard')
+    navigate({ name: 'admin_dashboard' })
   }
 
   const handleLogout = async () => {
@@ -80,7 +58,7 @@ export default function App() {
     }
     setToken(null)
     setTokenState(null)
-    setView('store')
+    navigate({ name: 'store' })
   }
 
   const handleChangePassword = async (oldPassword: string, newPassword: string) => {
@@ -92,8 +70,7 @@ export default function App() {
   const handleSaveProduct = async (product: Product) => {
     await saveProduct(product)
     await reload()
-    setEditingProduct(null)
-    setView('admin_dashboard')
+    navigate({ name: 'admin_dashboard' })
   }
 
   const handleDeleteProduct = async (product: Product) => {
@@ -137,12 +114,129 @@ export default function App() {
     )
   }
 
-  const detailProduct = data.products.find((product) => product.id === detailProductId) ?? null
+  const goToProduct = (product: Product) => navigate({ name: 'product', id: product.id })
 
-  return (
-    <div className="min-h-screen bg-gray-200 flex justify-center">
-      <div className="w-full max-w-md bg-gray-100 min-h-screen shadow-2xl relative overflow-x-hidden">
-        {view === 'home' && (
+  const goBackOrHome = () => {
+    if (canGoBack()) {
+      window.history.back()
+      return
+    }
+    navigate({ name: 'home' })
+  }
+
+  const loginScreen = (
+    <AdminLoginView onLogin={handleLogin} onBack={() => navigate({ name: 'store' })} />
+  )
+
+  const notFoundScreen = (message: string, back: () => void) => (
+    <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center px-8 text-center">
+      <p className="text-sm font-bold text-gray-800 mb-2">{message}</p>
+      <p className="text-xs text-gray-500 mb-5">Produk mungkin sudah dihapus dari katalog.</p>
+      <button
+        onClick={back}
+        className="bg-[#ee4d2d] text-white font-bold px-5 py-2.5 rounded-md shadow-md active:bg-orange-600"
+      >
+        Kembali
+      </button>
+    </div>
+  )
+
+  const renderRoute = () => {
+    switch (route.name) {
+      case 'product': {
+        const product = data.products.find((item) => item.id === route.id)
+        if (product === undefined) {
+          return notFoundScreen('Produk tidak ditemukan', () => navigate({ name: 'home' }))
+        }
+        return (
+          <ProductDetailView
+            product={product}
+            storeSettings={data.settings}
+            onBack={goBackOrHome}
+            onStoreClick={() => navigate({ name: 'store' })}
+          />
+        )
+      }
+
+      case 'store':
+        return (
+          <StoreView
+            products={data.products}
+            storeSettings={data.settings}
+            isAdmin={isAdmin}
+            onProductClick={goToProduct}
+            onHomeClick={() => navigate({ name: 'home' })}
+            onAdminClick={() => navigate(isAdmin ? { name: 'admin_dashboard' } : { name: 'admin_login' })}
+          />
+        )
+
+      case 'admin_login':
+        return loginScreen
+
+      case 'admin_dashboard':
+        if (!isAdmin) {
+          return loginScreen
+        }
+        return (
+          <AdminDashboardView
+            products={data.products}
+            onLogout={() => void handleLogout()}
+            onAddProduct={() => navigate({ name: 'admin_product', id: 0 })}
+            onEditProduct={(product) => navigate({ name: 'admin_product', id: product.id })}
+            onDeleteProduct={handleDeleteProduct}
+            onNavigate={(target) => navigate(target)}
+          />
+        )
+
+      case 'admin_product': {
+        if (!isAdmin) {
+          return loginScreen
+        }
+
+        const editing =
+          route.id > 0 ? data.products.find((item) => item.id === route.id) : NEW_PRODUCT
+
+        if (editing === undefined) {
+          return notFoundScreen('Produk tidak ditemukan', () => navigate({ name: 'admin_dashboard' }))
+        }
+
+        return (
+          <AdminEditProductView
+            product={editing}
+            categories={data.categories}
+            onSave={handleSaveProduct}
+            onCancel={() => navigate({ name: 'admin_dashboard' })}
+          />
+        )
+      }
+
+      case 'admin_categories':
+        if (!isAdmin) {
+          return loginScreen
+        }
+        return (
+          <AdminCategoryView
+            categories={data.categories}
+            onSave={handleSaveCategories}
+            onBack={() => navigate({ name: 'admin_dashboard' })}
+          />
+        )
+
+      case 'admin_settings':
+        if (!isAdmin) {
+          return loginScreen
+        }
+        return (
+          <AdminSettingsView
+            storeSettings={data.settings}
+            onSave={handleSaveSettings}
+            onChangePassword={handleChangePassword}
+            onBack={() => navigate({ name: 'admin_dashboard' })}
+          />
+        )
+
+      default:
+        return (
           <HomeView
             products={data.products}
             storeSettings={data.settings}
@@ -150,76 +244,16 @@ export default function App() {
             activeFilter={activeFilter}
             onFilterChange={setActiveFilter}
             onProductClick={goToProduct}
-            onStoreClick={goToStore}
+            onStoreClick={() => navigate({ name: 'store' })}
           />
-        )}
+        )
+    }
+  }
 
-        {view === 'product' && detailProduct !== null && (
-          <ProductDetailView
-            product={detailProduct}
-            storeSettings={data.settings}
-            onBack={goToHome}
-            onStoreClick={goToStore}
-          />
-        )}
-
-        {view === 'store' && (
-          <StoreView
-            products={data.products}
-            storeSettings={data.settings}
-            isAdmin={isAdmin}
-            onProductClick={goToProduct}
-            onHomeClick={goToHome}
-            onAdminClick={goToAdmin}
-          />
-        )}
-
-        {view === 'admin_login' && <AdminLoginView onLogin={handleLogin} onBack={() => setView('store')} />}
-
-        {view === 'admin_dashboard' && (
-          <AdminDashboardView
-            products={data.products}
-            onLogout={() => void handleLogout()}
-            onAddProduct={() => {
-              setEditingProduct(NEW_PRODUCT)
-              setView('admin_edit_product')
-            }}
-            onEditProduct={(product) => {
-              setEditingProduct(product)
-              setView('admin_edit_product')
-            }}
-            onDeleteProduct={handleDeleteProduct}
-            onNavigate={setView}
-          />
-        )}
-
-        {view === 'admin_edit_product' && editingProduct !== null && (
-          <AdminEditProductView
-            product={editingProduct}
-            onSave={handleSaveProduct}
-            onCancel={() => {
-              setEditingProduct(null)
-              setView('admin_dashboard')
-            }}
-          />
-        )}
-
-        {view === 'admin_categories' && (
-          <AdminCategoryView
-            categories={data.categories}
-            onSave={handleSaveCategories}
-            onBack={() => setView('admin_dashboard')}
-          />
-        )}
-
-        {view === 'admin_settings' && (
-          <AdminSettingsView
-            storeSettings={data.settings}
-            onSave={handleSaveSettings}
-            onChangePassword={handleChangePassword}
-            onBack={() => setView('admin_dashboard')}
-          />
-        )}
+  return (
+    <div className="min-h-screen bg-gray-200 flex justify-center">
+      <div className="w-full max-w-md bg-gray-100 min-h-screen shadow-2xl relative overflow-x-hidden">
+        {renderRoute()}
       </div>
     </div>
   )

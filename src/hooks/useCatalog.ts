@@ -2,6 +2,20 @@ import { useCallback, useEffect, useState } from 'react'
 import { fetchCatalog } from '../api'
 import type { Catalog } from '../types'
 
+// Server yang belum diperbarui belum mengirim `variants` dan `categoryIds`.
+// Nilai bawaannya diisi di sini supaya tampilan tidak rusak saat versi
+// backend dan frontend belum sama.
+function normalizeCatalog(catalog: Catalog): Catalog {
+  return {
+    ...catalog,
+    products: catalog.products.map((product) => ({
+      ...product,
+      variants: product.variants ?? [],
+      categoryIds: product.categoryIds ?? [],
+    })),
+  }
+}
+
 export function useCatalog() {
   const [data, setData] = useState<Catalog | null>(null)
   const [loading, setLoading] = useState(true)
@@ -15,7 +29,7 @@ export function useCatalog() {
     fetchCatalog()
       .then((catalog) => {
         if (!active) return
-        setData(catalog)
+        setData(normalizeCatalog(catalog))
         setError(null)
       })
       .catch((err: unknown) => {
@@ -35,7 +49,7 @@ export function useCatalog() {
   const reload = useCallback(async () => {
     setLoading(true)
     try {
-      setData(await fetchCatalog())
+      setData(normalizeCatalog(await fetchCatalog()))
       setError(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Gagal memuat katalog.')

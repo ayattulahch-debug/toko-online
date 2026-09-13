@@ -3,7 +3,7 @@ import type { ChangeEvent, FormEvent } from 'react'
 import { Check, ChevronLeft, Loader2, Plus, Trash2, Upload } from 'lucide-react'
 import { uploadImage } from '../api'
 import { compressImage } from '../lib/image'
-import type { Product, ProductForm, ProductImage } from '../types'
+import type { Category, Product, ProductForm, ProductImage } from '../types'
 
 type EditableField = 'name' | 'price' | 'originalPrice' | 'description'
 
@@ -21,6 +21,7 @@ interface DraftVariant {
 
 interface AdminEditProductViewProps {
   product: Product
+  categories: Category[]
   onSave: (product: Product) => Promise<void>
   onCancel: () => void
 }
@@ -33,12 +34,20 @@ function toForm(product: Product): ProductForm {
   }
 }
 
-export function AdminEditProductView({ product, onSave, onCancel }: AdminEditProductViewProps) {
+export function AdminEditProductView({
+  product,
+  categories,
+  onSave,
+  onCancel,
+}: AdminEditProductViewProps) {
   const [formData, setFormData] = useState<ProductForm>(() => toForm(product))
   const [images, setImages] = useState<DraftImage[]>(() => product.images.map((image) => ({ ...image })))
   const [variants, setVariants] = useState<DraftVariant[]>(() =>
     product.variants.map((variant) => ({ label: variant.label, price: String(variant.price) })),
   )
+  const [selectedCategories, setSelectedCategories] = useState<number[]>(() => [
+    ...product.categoryIds,
+  ])
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -58,26 +67,43 @@ export function AdminEditProductView({ product, onSave, onCancel }: AdminEditPro
   }
 
   const handleImageUpload = async (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
+    const files = Array.from(e.target.files ?? [])
     e.target.value = ''
-    if (file === undefined) return
+    if (files.length === 0) return
 
-    const previewUrl = URL.createObjectURL(file)
-    setImages((prev) => [...prev, { url: '', thumbUrl: '', previewUrl }])
-    setUploading(true)
-    setError(null)
+    const room = MAX_IMAGES - images.length
+    const accepted = files.slice(0, Math.max(0, room))
 
-    try {
-      const compressed = await compressImage(file)
-      const uploaded = await uploadImage(compressed.full, compressed.thumb)
-      setImages((prev) => prev.map((image) => (image.previewUrl === previewUrl ? { ...uploaded } : image)))
-    } catch (err) {
-      setImages((prev) => prev.filter((image) => image.previewUrl !== previewUrl))
-      setError(err instanceof Error ? err.message : 'Gagal mengunggah foto.')
-    } finally {
-      URL.revokeObjectURL(previewUrl)
-      setUploading(false)
+    if (accepted.length < files.length) {
+      setError(`Hanya ${Math.max(0, room)} foto lagi yang bisa ditambahkan (maksimal ${MAX_IMAGES} per produk).`)
+    } else {
+      setError(null)
     }
+
+    if (accepted.length === 0) return
+
+    setUploading(true)
+
+    // Diproses satu per satu supaya HP tidak berat dan kemajuannya terlihat.
+    for (const file of accepted) {
+      const previewUrl = URL.createObjectURL(file)
+      setImages((prev) => [...prev, { url: '', thumbUrl: '', previewUrl }])
+
+      try {
+        const compressed = await compressImage(file)
+        const uploaded = await uploadImage(compressed.full, compressed.thumb)
+        setImages((prev) =>
+          prev.map((image) => (image.previewUrl === previewUrl ? { ...uploaded } : image)),
+        )
+      } catch (err) {
+        setImages((prev) => prev.filter((image) => image.previewUrl !== previewUrl))
+        setError(err instanceof Error ? err.message : 'Gagal mengunggah foto.')
+      } finally {
+        URL.revokeObjectURL(previewUrl)
+      }
+    }
+
+    setUploading(false)
   }
 
   const addVariant = () => {
@@ -90,6 +116,12 @@ export function AdminEditProductView({ product, onSave, onCancel }: AdminEditPro
 
   const removeVariant = (index: number) => {
     setVariants((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  const toggleCategory = (id: number) => {
+    setSelectedCategories((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
+    )
   }
 
   const readyImages = images.filter((image) => image.url !== '')
@@ -123,6 +155,7 @@ export function AdminEditProductView({ product, onSave, onCancel }: AdminEditPro
           label: variant.label.trim(),
           price: Number(variant.price) || 0,
         })),
+        categoryIds: selectedCategories,
       })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Gagal menyimpan produk.')
@@ -175,6 +208,7 @@ export function AdminEditProductView({ product, onSave, onCancel }: AdminEditPro
                 <input
                   type="file"
                   accept="image/*"
+                  multiple
                   className="hidden"
                   disabled={uploading}
                   onChange={(e) => void handleImageUpload(e)}
@@ -186,7 +220,8 @@ export function AdminEditProductView({ product, onSave, onCancel }: AdminEditPro
             <p className="text-xs text-red-500 mt-2">Minimal 1 foto wajib diisi!</p>
           )}
           <p className="text-[10px] text-gray-400 mt-2">
-            Foto otomatis diperkecil dan dikompres sebelum diunggah agar hemat ruang hosting.
+            Bisa pilih beberapa foto sekaligus. Foto otomatis diperkecil dan dikompres sebelum
+            diunggah agar hemat ruang hosting.
           </p>
         </div>
 
@@ -242,6 +277,49 @@ export function AdminEditProductView({ product, onSave, onCancel }: AdminEditPro
               className="w-full border border-gray-300 rounded-md px-3 py-2 mt-1 text-sm outline-none focus:border-[#ee4d2d]"
             />
           </div>
+        </div>
+
+        <div className="bg-white p-4 rounded-md shadow-sm border border-gray-200 mt-4">
+          <h2 className="text-sm font-bold text-gray-800 border-b pb-2 mb-3">Kategori</h2>
+
+          {categories.length === 0 ? (
+            <p className="text-xs text-gray-500">
+              Belum ada kategori. Tambahkan dulu lewat menu <strong>Kategori</strong> di dashboard.
+            </p>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-2">
+                {categories.map((category) => {
+                  const checked = selectedCategories.includes(category.id)
+
+                  return (
+                    <label
+                      key={category.id}
+                      className={`flex items-center gap-2 border rounded-md px-2 py-2 text-xs cursor-pointer ${
+                        checked
+                          ? 'border-[#ee4d2d] bg-red-50 text-[#ee4d2d] font-semibold'
+                          : 'border-gray-200 bg-white text-gray-700'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        className="accent-[#ee4d2d]"
+                        checked={checked}
+                        onChange={() => toggleCategory(category.id)}
+                      />
+                      <span className="truncate">
+                        {category.icon} {category.name}
+                      </span>
+                    </label>
+                  )
+                })}
+              </div>
+              <p className="text-[10px] text-gray-400 mt-3">
+                Boleh centang lebih dari satu, misalnya <em>Plakat</em> sekaligus <em>Terlaris</em>.
+                Produk akan muncul saat pembeli menekan kategori mana pun yang dicentang.
+              </p>
+            </>
+          )}
         </div>
 
         <div className="bg-white p-4 rounded-md shadow-sm border border-gray-200 mt-4">

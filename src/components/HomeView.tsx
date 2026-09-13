@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Crown, Home as HomeIcon, MessageSquare, Search, ShoppingCart, Store, Tag } from 'lucide-react'
+import { Crown, Home as HomeIcon, MessageSquare, Search, ShoppingCart, Store, Tag, X } from 'lucide-react'
 import type { Category, Product, SortFilter, StoreSettings } from '../types'
 import { ProductCard } from './ProductCard'
 
@@ -23,8 +23,14 @@ export function HomeView({
   onStoreClick,
 }: HomeViewProps) {
   const [searchQuery, setSearchQuery] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState<number | null>(null)
+
+  const activeCategory = categories.find((category) => category.id === selectedCategory) ?? null
 
   const filteredProducts = products
+    .filter((product) =>
+      selectedCategory === null ? true : product.categoryIds.includes(selectedCategory),
+    )
     .filter(
       (product) =>
         product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -67,23 +73,54 @@ export function HomeView({
       </div>
 
       <div className="bg-white p-4 mb-2 grid grid-cols-4 gap-4 text-center text-xs shadow-sm">
-        {categories.map((cat) => (
-          <div
-            key={cat.id}
-            className="flex flex-col items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity"
-          >
-            <div className="w-10 h-10 border border-gray-200 rounded-xl flex items-center justify-center text-xl bg-gray-50 shadow-sm">
-              {cat.icon}
-            </div>
-            <span className="truncate w-full text-gray-700 font-medium">{cat.name}</span>
-          </div>
-        ))}
+        {categories.map((cat) => {
+          const active = cat.id === selectedCategory
+
+          return (
+            <button
+              key={cat.id}
+              type="button"
+              onClick={() => setSelectedCategory(active ? null : cat.id)}
+              className="flex flex-col items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity"
+            >
+              <div
+                className={`w-10 h-10 border rounded-xl flex items-center justify-center text-xl shadow-sm ${
+                  active ? 'border-[#ee4d2d] bg-red-50' : 'border-gray-200 bg-gray-50'
+                }`}
+              >
+                {cat.icon}
+              </div>
+              <span
+                className={`truncate w-full font-medium ${
+                  active ? 'text-[#ee4d2d]' : 'text-gray-700'
+                }`}
+              >
+                {cat.name}
+              </span>
+            </button>
+          )
+        })}
       </div>
 
       <div className="px-2">
-        <div className="bg-white text-[#ee4d2d] font-bold text-center py-3 mb-2 border-b-4 border-[#ee4d2d]">
-          REKOMENDASI UNTUKMU
-        </div>
+        {activeCategory !== null ? (
+          <div className="bg-white mb-2 border-b-4 border-[#ee4d2d] flex items-center justify-between px-3 py-2.5">
+            <span className="text-[#ee4d2d] font-bold text-sm truncate">
+              {activeCategory.icon} {activeCategory.name}
+            </span>
+            <button
+              type="button"
+              onClick={() => setSelectedCategory(null)}
+              className="flex items-center gap-1 text-[11px] text-gray-500 border border-gray-300 rounded-full px-2 py-0.5 whitespace-nowrap active:bg-gray-100"
+            >
+              <X size={12} /> Hapus saringan
+            </button>
+          </div>
+        ) : (
+          <div className="bg-white text-[#ee4d2d] font-bold text-center py-3 mb-2 border-b-4 border-[#ee4d2d]">
+            REKOMENDASI UNTUKMU
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-2">
           {filteredProducts.length > 0 ? (
             filteredProducts.map((product) => (

@@ -30,7 +30,9 @@ export function AdminCategoryView({ categories, onSave, onBack }: AdminCategoryV
     setError(null)
 
     try {
-      await onSave(cats.map(({ icon, name }) => ({ id: 0, icon, name })))
+      // ID kategori lama ikut dikirim supaya server memperbaruinya, bukan
+      // menghapus lalu membuat ulang (itu akan memutus tautan ke produk).
+      await onSave(cats.map(({ id, icon, name }) => ({ id: id > 0 ? id : 0, icon, name })))
       onBack()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Gagal menyimpan kategori.')

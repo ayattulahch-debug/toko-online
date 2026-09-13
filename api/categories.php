@@ -38,18 +38,45 @@ foreach ($input as $index => $category) {
         json_error('Ikon kategori terlalu panjang (maksimal 16 karakter).');
     }
 
-    $rows[] = ['icon' => $icon, 'name' => $name, 'order' => (int) $index];
+    $rows[] = [
+        'id' => (int) ($category['id'] ?? 0),
+        'icon' => $icon,
+        'name' => $name,
+        'order' => (int) $index,
+    ];
 }
 
 $pdo = db();
 $pdo->beginTransaction();
 
 try {
-    $pdo->exec('DELETE FROM categories');
-
-    $stmt = $pdo->prepare('INSERT INTO categories (icon, name, sort_order) VALUES (?, ?, ?)');
+    // Kategori lama diperbarui, bukan dihapus lalu dibuat ulang. Kalau dihapus
+    // semua, foreign key dari product_categories akan ikut menghapus tautan
+    // produk ke kategori setiap kali kategori disimpan.
+    $keptIds = [];
     foreach ($rows as $row) {
-        $stmt->execute([$row['icon'], $row['name'], $row['order']]);
+        if ($row['id'] > 0) {
+            $keptIds[] = $row['id'];
+        }
+    }
+
+    if ($keptIds === []) {
+        $pdo->exec('DELETE FROM categories');
+    } else {
+        $placeholders = implode(',', array_fill(0, count($keptIds), '?'));
+        $stmt = $pdo->prepare('DELETE FROM categories WHERE id NOT IN (' . $placeholders . ')');
+        $stmt->execute($keptIds);
+    }
+
+    $update = $pdo->prepare('UPDATE categories SET icon = ?, name = ?, sort_order = ? WHERE id = ?');
+    $insert = $pdo->prepare('INSERT INTO categories (icon, name, sort_order) VALUES (?, ?, ?)');
+
+    foreach ($rows as $row) {
+        if ($row['id'] > 0) {
+            $update->execute([$row['icon'], $row['name'], $row['order'], $row['id']]);
+        } else {
+            $insert->execute([$row['icon'], $row['name'], $row['order']]);
+        }
     }
 
     $pdo->commit();
@@ -58,4 +85,13 @@ try {
     json_error('Gagal menyimpan kategori.', 500);
 }
 
-json_out(['ok' => true]);
+$saved = [];
+foreach (db()->query('SELECT id, icon, name FROM categories ORDER BY sort_order ASC, id ASC')->fetchAll() as $row) {
+    $saved[] = [
+        'id' => (int) $row['id'],
+        'icon' => (string) $row['icon'],
+        'name' => (string) $row['name'],
+    ];
+}
+
+json_out(['ok' => true, 'categories' => $saved]);
