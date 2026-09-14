@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 
 export type Route =
   | { name: 'home' }
+  | { name: 'category'; id: number }
   | { name: 'product'; id: number }
   | { name: 'store' }
   | { name: 'admin_login' }
@@ -23,6 +24,11 @@ export function parseHash(hash: string): Route {
   if (parts[0] === 'produk') {
     const id = Number(parts[1])
     return Number.isInteger(id) && id > 0 ? { name: 'product', id } : { name: 'home' }
+  }
+
+  if (parts[0] === 'kategori') {
+    const id = Number(parts[1])
+    return Number.isInteger(id) && id > 0 ? { name: 'category', id } : { name: 'home' }
   }
 
   if (parts[0] === 'toko') {
@@ -55,6 +61,8 @@ export function routeToHash(route: Route): string {
   switch (route.name) {
     case 'product':
       return `#/produk/${route.id}`
+    case 'category':
+      return `#/kategori/${route.id}`
     case 'store':
       return '#/toko'
     case 'admin_login':
@@ -95,6 +103,10 @@ export function canGoBack(): boolean {
 // Dipakai untuk tombol share dan tautan di pesan WhatsApp.
 export function productUrl(id: number): string {
   return `${window.location.origin}${window.location.pathname}#/produk/${id}`
+}
+
+export function categoryUrl(id: number): string {
+  return `${window.location.origin}${window.location.pathname}#/kategori/${id}`
 }
 
 export function useRoute(): Route {

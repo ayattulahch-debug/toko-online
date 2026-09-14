@@ -1,5 +1,7 @@
 import { useState } from 'react'
-import { Home as HomeIcon, MessageSquare, Search, ShoppingCart, Store, X } from 'lucide-react'
+import { Home as HomeIcon, MessageSquare, Search, Share2, Store, X } from 'lucide-react'
+import { categoryUrl } from '../lib/router'
+import { openWhatsApp, shareLink } from '../lib/share'
 import type { Category, Product, StoreSettings } from '../types'
 import { ProductCard } from './ProductCard'
 
@@ -7,6 +9,8 @@ interface HomeViewProps {
   products: Product[]
   storeSettings: StoreSettings
   categories: Category[]
+  selectedCategoryId: number | null
+  onSelectCategory: (id: number | null) => void
   onProductClick: (product: Product) => void
   onStoreClick: () => void
 }
@@ -15,13 +19,14 @@ export function HomeView({
   products,
   storeSettings,
   categories,
+  selectedCategoryId,
+  onSelectCategory,
   onProductClick,
   onStoreClick,
 }: HomeViewProps) {
   const [searchQuery, setSearchQuery] = useState('')
-  const [selectedCategory, setSelectedCategory] = useState<number | null>(null)
 
-  const activeCategory = categories.find((category) => category.id === selectedCategory) ?? null
+  const activeCategory = categories.find((category) => category.id === selectedCategoryId) ?? null
 
   // Kategori yang tampil di bilah bawah, diatur dari menu Pengaturan.
   const bottomCategories = storeSettings.bottomCategoryIds
@@ -30,7 +35,7 @@ export function HomeView({
 
   const filteredProducts = products
     .filter((product) =>
-      selectedCategory === null ? true : product.categoryIds.includes(selectedCategory),
+      selectedCategoryId === null ? true : product.categoryIds.includes(selectedCategoryId),
     )
     .filter(
       (product) =>
@@ -38,57 +43,72 @@ export function HomeView({
         product.description.toLowerCase().includes(searchQuery.toLowerCase()),
     )
 
+  const handleShareCategory = () => {
+    if (activeCategory === null) {
+      return
+    }
+
+    void shareLink({
+      title: activeCategory.name,
+      text: `${activeCategory.icon} ${activeCategory.name} — ${storeSettings.name}`,
+      url: categoryUrl(activeCategory.id),
+    })
+  }
+
+  const handleChatStore = () => {
+    openWhatsApp(storeSettings.whatsappNumber, `Halo ${storeSettings.name}, saya ingin bertanya.`)
+  }
+
   return (
     <div className="pb-16">
-      <div className="bg-[#ee4d2d] sticky top-0 z-50 px-3 py-3 flex items-center gap-3">
+      <div className="bg-[var(--accent)] sticky top-0 z-50 px-3 py-3 flex items-center gap-3">
         <div className="flex-1 bg-white rounded-sm flex items-center px-2 py-1.5">
           <Search size={18} className="text-gray-400" />
           <input
             type="text"
             placeholder="Cari produk akrilik..."
-            className="w-full text-sm outline-none px-2 text-[#ee4d2d]"
+            className="w-full text-sm outline-none px-2 text-[var(--accent)]"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        <div className="text-white relative cursor-pointer">
-          <ShoppingCart size={24} />
-          <span className="absolute -top-1 -right-2 bg-white text-[#ee4d2d] text-[10px] font-bold px-1.5 rounded-full border border-[#ee4d2d]">
-            3
-          </span>
-        </div>
-        <div className="text-white cursor-pointer">
+        <button
+          type="button"
+          onClick={handleChatStore}
+          aria-label="Hubungi toko lewat WhatsApp"
+          className="text-white cursor-pointer"
+        >
           <MessageSquare size={24} />
-        </div>
+        </button>
       </div>
 
       <div className="w-full bg-white mb-2">
-        <div className="aspect-[21/9] bg-gradient-to-r from-orange-400 to-[#ee4d2d] flex items-center justify-center text-white font-bold text-xl px-4 text-center">
+        <div className="aspect-[21/9] bg-gradient-to-r from-[var(--accent-dark)] to-[var(--accent)] flex items-center justify-center text-white font-bold text-xl px-4 text-center">
           {storeSettings.promoText}
         </div>
       </div>
 
       <div className="bg-white p-4 mb-2 grid grid-cols-4 gap-4 text-center text-xs shadow-sm">
         {categories.map((cat) => {
-          const active = cat.id === selectedCategory
+          const active = cat.id === selectedCategoryId
 
           return (
             <button
               key={cat.id}
               type="button"
-              onClick={() => setSelectedCategory(active ? null : cat.id)}
+              onClick={() => onSelectCategory(active ? null : cat.id)}
               className="flex flex-col items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity"
             >
               <div
                 className={`w-10 h-10 border rounded-xl flex items-center justify-center text-xl shadow-sm ${
-                  active ? 'border-[#ee4d2d] bg-red-50' : 'border-gray-200 bg-gray-50'
+                  active ? 'border-[var(--accent)] bg-[var(--accent-soft)]' : 'border-gray-200 bg-gray-50'
                 }`}
               >
                 {cat.icon}
               </div>
               <span
                 className={`truncate w-full font-medium ${
-                  active ? 'text-[#ee4d2d]' : 'text-gray-700'
+                  active ? 'text-[var(--accent)]' : 'text-gray-700'
                 }`}
               >
                 {cat.name}
@@ -100,20 +120,30 @@ export function HomeView({
 
       <div className="px-2">
         {activeCategory !== null ? (
-          <div className="bg-white mb-2 border-b-4 border-[#ee4d2d] flex items-center justify-between px-3 py-2.5">
-            <span className="text-[#ee4d2d] font-bold text-sm truncate">
+          <div className="bg-white mb-2 border-b-4 border-[var(--accent)] flex items-center justify-between gap-2 px-3 py-2.5">
+            <span className="text-[var(--accent)] font-bold text-sm truncate">
               {activeCategory.icon} {activeCategory.name}
             </span>
-            <button
-              type="button"
-              onClick={() => setSelectedCategory(null)}
-              className="flex items-center gap-1 text-[11px] text-gray-500 border border-gray-300 rounded-full px-2 py-0.5 whitespace-nowrap active:bg-gray-100"
-            >
-              <X size={12} /> Hapus saringan
-            </button>
+            <span className="flex items-center gap-1 shrink-0">
+              <button
+                type="button"
+                onClick={handleShareCategory}
+                aria-label={`Bagikan kategori ${activeCategory.name}`}
+                className="flex items-center gap-1 text-[11px] text-[var(--accent)] border border-[var(--accent)] rounded-full px-2 py-0.5 whitespace-nowrap active:bg-[var(--accent-soft)]"
+              >
+                <Share2 size={12} /> Bagikan
+              </button>
+              <button
+                type="button"
+                onClick={() => onSelectCategory(null)}
+                className="flex items-center gap-1 text-[11px] text-gray-500 border border-gray-300 rounded-full px-2 py-0.5 whitespace-nowrap active:bg-gray-100"
+              >
+                <X size={12} /> Hapus
+              </button>
+            </span>
           </div>
         ) : (
-          <div className="bg-white text-[#ee4d2d] font-bold text-center py-3 mb-2 border-b-4 border-[#ee4d2d]">
+          <div className="bg-white text-[var(--accent)] font-bold text-center py-3 mb-2 border-b-4 border-[var(--accent)]">
             REKOMENDASI UNTUKMU
           </div>
         )}
@@ -136,11 +166,11 @@ export function HomeView({
         <button
           type="button"
           onClick={() => {
-            setSelectedCategory(null)
+            onSelectCategory(null)
             window.scrollTo(0, 0)
           }}
           className={`flex flex-col items-center ${
-            selectedCategory === null ? 'text-[#ee4d2d]' : 'hover:text-[#ee4d2d]'
+            selectedCategoryId === null ? 'text-[var(--accent)]' : 'hover:text-[var(--accent)]'
           }`}
         >
           <HomeIcon size={20} />
@@ -148,18 +178,18 @@ export function HomeView({
         </button>
 
         {bottomCategories.map((category) => {
-          const active = category.id === selectedCategory
+          const active = category.id === selectedCategoryId
 
           return (
             <button
               key={category.id}
               type="button"
               onClick={() => {
-                setSelectedCategory(active ? null : category.id)
+                onSelectCategory(active ? null : category.id)
                 window.scrollTo(0, 0)
               }}
               className={`flex flex-col items-center max-w-[70px] ${
-                active ? 'text-[#ee4d2d]' : 'hover:text-[#ee4d2d]'
+                active ? 'text-[var(--accent)]' : 'hover:text-[var(--accent)]'
               }`}
             >
               <span className="text-[18px] leading-5">{category.icon}</span>
@@ -171,7 +201,7 @@ export function HomeView({
         <button
           type="button"
           onClick={onStoreClick}
-          className="flex flex-col items-center hover:text-[#ee4d2d]"
+          className="flex flex-col items-center hover:text-[var(--accent)]"
         >
           <Store size={20} />
           <span>Toko Saya</span>

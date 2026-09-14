@@ -105,6 +105,13 @@ export function deleteProduct(id: number): Promise<{ ok: boolean }> {
   return request<{ ok: boolean }>(`/products.php?id=${id}`, { method: 'DELETE' })
 }
 
+export function saveProductOrder(ids: number[]): Promise<{ ok: boolean }> {
+  return request<{ ok: boolean }>('/product-order.php', {
+    method: 'POST',
+    body: JSON.stringify({ ids }),
+  })
+}
+
 export function saveCategories(categories: Category[]): Promise<{ ok: boolean }> {
   return request<{ ok: boolean }>('/categories.php', {
     method: 'POST',

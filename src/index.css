@@ -4,6 +4,14 @@
   --font-sans: "Inter", system-ui, "Segoe UI", Roboto, sans-serif;
 }
 
+/* Warna aksen toko. Nilainya diganti saat aplikasi dimuat dari pengaturan
+   toko, jadi mengganti warna tidak perlu build ulang. */
+:root {
+  --accent: #ee4d2d;
+  --accent-dark: #ca4126;
+  --accent-soft: #fdf0ed;
+}
+
 html {
   scroll-behavior: smooth;
 }

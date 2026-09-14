@@ -11,7 +11,7 @@ $productRows = db()->query(
     'SELECT id, name, price, original_price, sold, location, rating, description
      FROM products
      WHERE is_active = 1
-     ORDER BY id ASC'
+     ORDER BY sort_order ASC, id ASC'
 )->fetchAll();
 
 $imageRows = db()->query(
@@ -87,7 +87,7 @@ foreach (db()->query('SELECT id, icon, name FROM categories ORDER BY sort_order 
 }
 
 $settingsRow = db()->query(
-    'SELECT name, location, promo_text, banner, whatsapp_number, bottom_category_ids
+    'SELECT name, location, promo_text, banner, whatsapp_number, bottom_category_ids, accent_color
      FROM store_settings WHERE id = 1'
 )->fetch();
 
@@ -109,5 +109,6 @@ json_out([
         'banner' => (string) ($settingsRow['banner'] ?? ''),
         'whatsappNumber' => (string) ($settingsRow['whatsapp_number'] ?? ''),
         'bottomCategoryIds' => $bottomCategoryIds,
+        'accentColor' => (string) ($settingsRow['accent_color'] ?? '#ee4d2d'),
     ],
 ]);

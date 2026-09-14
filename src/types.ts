@@ -40,6 +40,7 @@ export interface StoreSettings {
   banner: string
   whatsappNumber: string
   bottomCategoryIds: number[]
+  accentColor: string
 }
 
 export interface Catalog {

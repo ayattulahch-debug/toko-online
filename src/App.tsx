@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   changePassword,
   deleteProduct,
@@ -7,6 +7,7 @@ import {
   logout,
   saveCategories,
   saveProduct,
+  saveProductOrder,
   saveSettings,
   setToken,
 } from './api'
@@ -19,6 +20,7 @@ import { HomeView } from './components/HomeView'
 import { ProductDetailView } from './components/ProductDetailView'
 import { StoreView } from './components/StoreView'
 import { useCatalog } from './hooks/useCatalog'
+import { accentShades } from './lib/color'
 import { canGoBack, navigate, useRoute } from './lib/router'
 import type { Category, Product, StoreSettings } from './types'
 
@@ -39,6 +41,19 @@ export default function App() {
   const { data, loading, error, reload } = useCatalog()
   const [token, setTokenState] = useState<string | null>(() => getToken())
   const route = useRoute()
+
+  const accentColor = data?.settings.accentColor ?? '#ee4d2d'
+
+  // Warna tema disetel sebagai variabel CSS, jadi seluruh tampilan ikut berubah
+  // tanpa perlu build ulang.
+  useEffect(() => {
+    const shades = accentShades(accentColor)
+    const root = document.documentElement
+
+    root.style.setProperty('--accent', shades.accent)
+    root.style.setProperty('--accent-dark', shades.dark)
+    root.style.setProperty('--accent-soft', shades.soft)
+  }, [accentColor])
 
   const isAdmin = token !== null
 
@@ -77,6 +92,11 @@ export default function App() {
     await reload()
   }
 
+  const handleReorderProducts = async (ids: number[]) => {
+    await saveProductOrder(ids)
+    await reload()
+  }
+
   const handleSaveCategories = async (categories: Category[]) => {
     await saveCategories(categories)
     await reload()
@@ -93,7 +113,7 @@ export default function App() {
         <div className="w-full max-w-md bg-gray-100 min-h-screen shadow-2xl flex flex-col items-center justify-center px-8 text-center">
           {loading ? (
             <>
-              <div className="w-10 h-10 border-4 border-gray-300 border-t-[#ee4d2d] rounded-full animate-spin mb-4" />
+              <div className="w-10 h-10 border-4 border-gray-300 border-t-[var(--accent)] rounded-full animate-spin mb-4" />
               <p className="text-sm text-gray-600">Memuat katalog toko...</p>
             </>
           ) : (
@@ -102,7 +122,7 @@ export default function App() {
               <p className="text-xs text-gray-500 mb-5">{error}</p>
               <button
                 onClick={() => void reload()}
-                className="bg-[#ee4d2d] text-white font-bold px-5 py-2.5 rounded-md shadow-md active:bg-orange-600"
+                className="bg-[var(--accent)] text-white font-bold px-5 py-2.5 rounded-md shadow-md active:bg-[var(--accent-dark)]"
               >
                 Coba Lagi
               </button>
@@ -133,7 +153,7 @@ export default function App() {
       <p className="text-xs text-gray-500 mb-5">Produk mungkin sudah dihapus dari katalog.</p>
       <button
         onClick={back}
-        className="bg-[#ee4d2d] text-white font-bold px-5 py-2.5 rounded-md shadow-md active:bg-orange-600"
+        className="bg-[var(--accent)] text-white font-bold px-5 py-2.5 rounded-md shadow-md active:bg-[var(--accent-dark)]"
       >
         Kembali
       </button>
@@ -184,6 +204,7 @@ export default function App() {
             onAddProduct={() => navigate({ name: 'admin_product', id: 0 })}
             onEditProduct={(product) => navigate({ name: 'admin_product', id: product.id })}
             onDeleteProduct={handleDeleteProduct}
+            onReorderProducts={handleReorderProducts}
             onNavigate={(target) => navigate(target)}
           />
         )
@@ -236,12 +257,18 @@ export default function App() {
           />
         )
 
+      case 'home':
+      case 'category':
       default:
         return (
           <HomeView
             products={data.products}
             storeSettings={data.settings}
             categories={data.categories}
+            selectedCategoryId={route.name === 'category' ? route.id : null}
+            onSelectCategory={(id) =>
+              navigate(id === null ? { name: 'home' } : { name: 'category', id })
+            }
             onProductClick={goToProduct}
             onStoreClick={() => navigate({ name: 'store' })}
           />

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronLeft, Edit3, Layout, Loader2, LogOut, Plus, Settings, Trash2 } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronUp, Edit3, Layout, Loader2, LogOut, Plus, Settings, Trash2 } from 'lucide-react'
 import type { Route } from '../lib/router'
 import type { Product } from '../types'
 import { formatRp } from '../utils'
@@ -12,6 +12,7 @@ interface AdminDashboardViewProps {
   onAddProduct: () => void
   onEditProduct: (product: Product) => void
   onDeleteProduct: (product: Product) => Promise<void>
+  onReorderProducts: (ids: number[]) => Promise<void>
   onNavigate: (route: Route) => void
 }
 
@@ -21,11 +22,37 @@ export function AdminDashboardView({
   onAddProduct,
   onEditProduct,
   onDeleteProduct,
+  onReorderProducts,
   onNavigate,
 }: AdminDashboardViewProps) {
   const [tab, setTab] = useState<DashboardTab>('products')
   const [deletingId, setDeletingId] = useState<number | null>(null)
+  const [reordering, setReordering] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const handleMove = async (index: number, direction: -1 | 1) => {
+    const target = index + direction
+
+    if (target < 0 || target >= products.length) {
+      return
+    }
+
+    const ordered = products.map((product) => product.id)
+    const temp = ordered[index]
+    ordered[index] = ordered[target]
+    ordered[target] = temp
+
+    setReordering(true)
+    setError(null)
+
+    try {
+      await onReorderProducts(ordered)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Gagal menyimpan urutan produk.')
+    } finally {
+      setReordering(false)
+    }
+  }
 
   const handleDelete = async (product: Product) => {
     if (!window.confirm(`Hapus produk "${product.name}"? Tindakan ini tidak bisa dibatalkan.`)) {
@@ -57,19 +84,19 @@ export function AdminDashboardView({
       </div>
       <div className="flex bg-white shadow-sm border-b">
         <button
-          className={`flex-1 py-3 text-xs font-bold ${tab === 'products' ? 'text-[#ee4d2d] border-b-2 border-[#ee4d2d]' : 'text-gray-500'}`}
+          className={`flex-1 py-3 text-xs font-bold ${tab === 'products' ? 'text-[var(--accent)] border-b-2 border-[var(--accent)]' : 'text-gray-500'}`}
           onClick={() => setTab('products')}
         >
           PRODUK
         </button>
         <button
-          className={`flex-1 py-3 text-xs font-bold ${tab === 'categories' ? 'text-[#ee4d2d] border-b-2 border-[#ee4d2d]' : 'text-gray-500'}`}
+          className={`flex-1 py-3 text-xs font-bold ${tab === 'categories' ? 'text-[var(--accent)] border-b-2 border-[var(--accent)]' : 'text-gray-500'}`}
           onClick={() => setTab('categories')}
         >
           KATEGORI
         </button>
         <button
-          className={`flex-1 py-3 text-xs font-bold ${tab === 'settings' ? 'text-[#ee4d2d] border-b-2 border-[#ee4d2d]' : 'text-gray-500'}`}
+          className={`flex-1 py-3 text-xs font-bold ${tab === 'settings' ? 'text-[var(--accent)] border-b-2 border-[var(--accent)]' : 'text-gray-500'}`}
           onClick={() => setTab('settings')}
         >
           TAMPILAN
@@ -92,7 +119,7 @@ export function AdminDashboardView({
               <p className="text-xs text-red-500 bg-red-50 border border-red-200 rounded-md p-3">{error}</p>
             )}
 
-            {products.map((p) => (
+            {products.map((p, index) => (
               <div
                 key={p.id}
                 className="bg-white p-3 rounded-md shadow-sm flex items-center gap-3 border border-gray-100"
@@ -102,14 +129,39 @@ export function AdminDashboardView({
                     Tanpa foto
                   </div>
                 ) : (
-                  <img src={p.images[0].thumbUrl} className="w-16 h-16 object-cover rounded" alt="thumb" />
+                  <img
+                    src={p.images[0].thumbUrl}
+                    className="w-16 h-16 object-cover rounded"
+                    alt={`Foto ${p.name}`}
+                  />
                 )}
                 <div className="flex-1 min-w-0">
                   <h3 className="text-xs font-bold text-gray-800 line-clamp-1">{p.name}</h3>
-                  <p className="text-[#ee4d2d] text-xs font-semibold mt-1">{formatRp(p.price)}</p>
+                  <p className="text-[var(--accent)] text-xs font-semibold mt-1">{formatRp(p.price)}</p>
+                </div>
+                <div className="flex flex-col">
+                  <button
+                    type="button"
+                    onClick={() => void handleMove(index, -1)}
+                    disabled={index === 0 || reordering}
+                    aria-label={`Naikkan urutan ${p.name}`}
+                    className="p-1 text-gray-500 rounded active:bg-gray-100 disabled:opacity-30"
+                  >
+                    <ChevronUp size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleMove(index, 1)}
+                    disabled={index === products.length - 1 || reordering}
+                    aria-label={`Turunkan urutan ${p.name}`}
+                    className="p-1 text-gray-500 rounded active:bg-gray-100 disabled:opacity-30"
+                  >
+                    <ChevronDown size={14} />
+                  </button>
                 </div>
                 <button
                   onClick={() => onEditProduct(p)}
+                  aria-label={`Edit produk ${p.name}`}
                   className="p-2 bg-blue-50 text-blue-600 rounded-md active:bg-blue-100"
                 >
                   <Edit3 size={16} />
@@ -117,6 +169,7 @@ export function AdminDashboardView({
                 <button
                   onClick={() => void handleDelete(p)}
                   disabled={deletingId === p.id}
+                  aria-label={`Hapus produk ${p.name}`}
                   className="p-2 bg-red-50 text-red-500 rounded-md active:bg-red-100 disabled:opacity-50"
                 >
                   {deletingId === p.id ? (

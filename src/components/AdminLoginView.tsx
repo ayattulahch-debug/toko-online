@@ -35,8 +35,8 @@ export function AdminLoginView({ onLogin, onBack }: AdminLoginViewProps) {
       >
         <ChevronLeft size={24} />
       </button>
-      <div className="bg-white p-6 rounded-xl shadow-lg w-full max-w-xs text-center border-t-4 border-[#ee4d2d]">
-        <div className="w-16 h-16 bg-red-50 text-[#ee4d2d] rounded-full flex items-center justify-center mx-auto mb-4">
+      <div className="bg-white p-6 rounded-xl shadow-lg w-full max-w-xs text-center border-t-4 border-[var(--accent)]">
+        <div className="w-16 h-16 bg-[var(--accent-soft)] text-[var(--accent)] rounded-full flex items-center justify-center mx-auto mb-4">
           <Lock size={32} />
         </div>
         <h2 className="text-xl font-bold mb-6 text-gray-800">Login Pengelola</h2>
@@ -45,7 +45,7 @@ export function AdminLoginView({ onLogin, onBack }: AdminLoginViewProps) {
             type="text"
             placeholder="Username"
             autoComplete="username"
-            className="w-full border border-gray-300 p-3 rounded-md text-sm outline-none focus:border-[#ee4d2d]"
+            className="w-full border border-gray-300 p-3 rounded-md text-sm outline-none focus:border-[var(--accent)]"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
           />
@@ -53,7 +53,7 @@ export function AdminLoginView({ onLogin, onBack }: AdminLoginViewProps) {
             type="password"
             placeholder="Password"
             autoComplete="current-password"
-            className="w-full border border-gray-300 p-3 rounded-md text-sm outline-none focus:border-[#ee4d2d]"
+            className="w-full border border-gray-300 p-3 rounded-md text-sm outline-none focus:border-[var(--accent)]"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
@@ -61,7 +61,7 @@ export function AdminLoginView({ onLogin, onBack }: AdminLoginViewProps) {
           <button
             type="submit"
             disabled={busy}
-            className="w-full bg-[#ee4d2d] text-white p-3 rounded-md font-bold shadow-md active:bg-red-600 disabled:opacity-60 flex items-center justify-center gap-2"
+            className="w-full bg-[var(--accent)] text-white p-3 rounded-md font-bold shadow-md active:bg-[var(--accent-dark)] disabled:opacity-60 flex items-center justify-center gap-2"
           >
             {busy && <Loader2 size={16} className="animate-spin" />}
             {busy ? 'Memeriksa...' : 'Masuk Dashboard'}

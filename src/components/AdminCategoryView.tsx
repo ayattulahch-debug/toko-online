@@ -72,7 +72,7 @@ export function AdminCategoryView({ categories, onSave, onBack }: AdminCategoryV
                   type="text"
                   value={cat.icon}
                   onChange={(e) => handleChange(cat.id, 'icon', e.target.value)}
-                  className="w-12 border border-gray-300 rounded px-2 py-2 text-center text-lg outline-none focus:border-[#ee4d2d]"
+                  className="w-12 border border-gray-300 rounded px-2 py-2 text-center text-lg outline-none focus:border-[var(--accent)]"
                 />
               </div>
               <div className="flex-1 flex flex-col">
@@ -81,7 +81,7 @@ export function AdminCategoryView({ categories, onSave, onBack }: AdminCategoryV
                   type="text"
                   value={cat.name}
                   onChange={(e) => handleChange(cat.id, 'name', e.target.value)}
-                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm outline-none focus:border-[#ee4d2d]"
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
                 />
               </div>
               <button
@@ -101,7 +101,7 @@ export function AdminCategoryView({ categories, onSave, onBack }: AdminCategoryV
         <button
           onClick={() => void handleSave()}
           disabled={saving}
-          className="w-full bg-[#ee4d2d] text-white font-bold py-3 rounded-md shadow-md active:bg-orange-600 flex items-center justify-center gap-2 disabled:opacity-60"
+          className="w-full bg-[var(--accent)] text-white font-bold py-3 rounded-md shadow-md active:bg-[var(--accent-dark)] flex items-center justify-center gap-2 disabled:opacity-60"
         >
           {saving ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}
           {saving ? 'Menyimpan...' : 'Simpan Kategori'}

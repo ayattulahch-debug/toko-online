@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
-import { Check, ChevronLeft, Loader2, Plus, Trash2, Upload } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, ChevronLeft, Loader2, Plus, Trash2, Upload } from 'lucide-react'
 import { uploadImage } from '../api'
 import { compressImage } from '../lib/image'
 import type { Category, Product, ProductForm, ProductImage } from '../types'
@@ -64,6 +64,24 @@ export function AdminEditProductView({
       URL.revokeObjectURL(target.previewUrl)
     }
     setImages((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  // Foto pertama dipakai sebagai sampul katalog, jadi urutannya bisa diatur.
+  const moveImage = (index: number, direction: -1 | 1) => {
+    setImages((prev) => {
+      const target = index + direction
+
+      if (target < 0 || target >= prev.length) {
+        return prev
+      }
+
+      const next = [...prev]
+      const temp = next[index]
+      next[index] = next[target]
+      next[target] = temp
+
+      return next
+    })
   }
 
   const handleImageUpload = async (e: ChangeEvent<HTMLInputElement>) => {
@@ -178,22 +196,54 @@ export function AdminEditProductView({
           <label className="text-sm font-bold text-gray-800 mb-3 block">
             Foto Produk (Maks {MAX_IMAGES})
           </label>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-3">
             {images.map((img, idx) => (
-              <div key={idx} className="relative w-20 h-20 border rounded-md overflow-hidden bg-gray-100">
-                <img src={img.url || img.previewUrl} alt="preview" className="w-full h-full object-cover" />
-                {img.url === '' && (
-                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                    <Loader2 size={20} className="text-white animate-spin" />
-                  </div>
-                )}
-                <button
-                  type="button"
-                  onClick={() => handleRemoveImage(idx)}
-                  className="absolute top-1 right-1 bg-white rounded-full p-1 shadow-md text-red-500 active:bg-red-50"
-                >
-                  <Trash2 size={12} />
-                </button>
+              <div key={idx} className="w-20">
+                <div className="relative w-20 h-20 border rounded-md overflow-hidden bg-gray-100">
+                  <img
+                    src={img.url || img.previewUrl}
+                    alt={`Foto ${idx + 1}`}
+                    className="w-full h-full object-cover"
+                  />
+                  {img.url === '' && (
+                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                      <Loader2 size={20} className="text-white animate-spin" />
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveImage(idx)}
+                    aria-label={`Hapus foto ${idx + 1}`}
+                    className="absolute top-1 right-1 bg-white rounded-full p-1 shadow-md text-red-500 active:bg-red-50"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                  {idx === 0 && (
+                    <span className="absolute bottom-0 left-0 bg-[var(--accent)] text-white text-[9px] font-bold px-1 py-0.5 rounded-tr-md">
+                      Sampul
+                    </span>
+                  )}
+                </div>
+                <div className="flex justify-center gap-1 mt-1">
+                  <button
+                    type="button"
+                    onClick={() => moveImage(idx, -1)}
+                    disabled={idx === 0}
+                    aria-label={`Geser foto ${idx + 1} ke kiri`}
+                    className="p-1 bg-gray-100 rounded active:bg-gray-200 disabled:opacity-30"
+                  >
+                    <ArrowLeft size={12} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => moveImage(idx, 1)}
+                    disabled={idx === images.length - 1}
+                    aria-label={`Geser foto ${idx + 1} ke kanan`}
+                    className="p-1 bg-gray-100 rounded active:bg-gray-200 disabled:opacity-30"
+                  >
+                    <ArrowRight size={12} />
+                  </button>
+                </div>
               </div>
             ))}
 
@@ -221,7 +271,8 @@ export function AdminEditProductView({
           )}
           <p className="text-[10px] text-gray-400 mt-2">
             Bisa pilih beberapa foto sekaligus. Foto otomatis diperkecil dan dikompres sebelum
-            diunggah agar hemat ruang hosting.
+            diunggah agar hemat ruang hosting. Foto paling kiri dipakai sebagai sampul katalog —
+            geser dengan tombol panah untuk mengubahnya.
           </p>
         </div>
 
@@ -236,7 +287,7 @@ export function AdminEditProductView({
               onChange={handleChange}
               required
               rows={2}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 mt-1 text-sm outline-none focus:border-[#ee4d2d]"
+              className="w-full border border-gray-300 rounded-md px-3 py-2 mt-1 text-sm outline-none focus:border-[var(--accent)]"
             />
           </div>
 
@@ -250,7 +301,7 @@ export function AdminEditProductView({
                 onChange={handleChange}
                 required
                 min={0}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 mt-1 text-sm outline-none focus:border-[#ee4d2d]"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 mt-1 text-sm outline-none focus:border-[var(--accent)]"
               />
             </div>
             <div>
@@ -261,7 +312,7 @@ export function AdminEditProductView({
                 value={formData.originalPrice}
                 onChange={handleChange}
                 min={0}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 mt-1 text-sm outline-none focus:border-[#ee4d2d]"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 mt-1 text-sm outline-none focus:border-[var(--accent)]"
               />
             </div>
           </div>
@@ -274,7 +325,7 @@ export function AdminEditProductView({
               onChange={handleChange}
               required
               rows={6}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 mt-1 text-sm outline-none focus:border-[#ee4d2d]"
+              className="w-full border border-gray-300 rounded-md px-3 py-2 mt-1 text-sm outline-none focus:border-[var(--accent)]"
             />
           </div>
         </div>
@@ -297,13 +348,13 @@ export function AdminEditProductView({
                       key={category.id}
                       className={`flex items-center gap-2 border rounded-md px-2 py-2 text-xs cursor-pointer ${
                         checked
-                          ? 'border-[#ee4d2d] bg-red-50 text-[#ee4d2d] font-semibold'
+                          ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)] font-semibold'
                           : 'border-gray-200 bg-white text-gray-700'
                       }`}
                     >
                       <input
                         type="checkbox"
-                        className="accent-[#ee4d2d]"
+                        className="accent-[var(--accent)]"
                         checked={checked}
                         onChange={() => toggleCategory(category.id)}
                       />
@@ -351,7 +402,7 @@ export function AdminEditProductView({
                       value={variant.label}
                       onChange={(e) => changeVariant(index, 'label', e.target.value)}
                       placeholder="Nama varian"
-                      className="flex-1 min-w-0 border border-gray-300 rounded-md px-3 py-2 text-xs outline-none focus:border-[#ee4d2d]"
+                      className="flex-1 min-w-0 border border-gray-300 rounded-md px-3 py-2 text-xs outline-none focus:border-[var(--accent)]"
                     />
                     <input
                       type="number"
@@ -359,7 +410,7 @@ export function AdminEditProductView({
                       value={variant.price}
                       onChange={(e) => changeVariant(index, 'price', e.target.value)}
                       placeholder="Harga"
-                      className="w-24 border border-gray-300 rounded-md px-2 py-2 text-xs outline-none focus:border-[#ee4d2d]"
+                      className="w-24 border border-gray-300 rounded-md px-2 py-2 text-xs outline-none focus:border-[var(--accent)]"
                     />
                     <button
                       type="button"

@@ -1,15 +1,8 @@
-import { useState } from 'react'
-import {
-  ChevronLeft,
-  ChevronRight,
-  MessageSquare,
-  MoreVertical,
-  Share2,
-  ShoppingCart,
-  Star,
-  Store,
-} from 'lucide-react'
+import { useRef, useState } from 'react'
+import type { TouchEvent } from 'react'
+import { ChevronLeft, ChevronRight, Share2, Star, Store } from 'lucide-react'
 import { productUrl } from '../lib/router'
+import { openWhatsApp, shareLink } from '../lib/share'
 import type { Product, StoreSettings } from '../types'
 import { formatRp, formatSold } from '../utils'
 
@@ -20,9 +13,12 @@ interface ProductDetailViewProps {
   onStoreClick: () => void
 }
 
+const SWIPE_THRESHOLD = 40
+
 export function ProductDetailView({ product, storeSettings, onBack, onStoreClick }: ProductDetailViewProps) {
   const [currentImgIdx, setCurrentImgIdx] = useState(0)
   const [variantIdx, setVariantIdx] = useState(0)
+  const touchStartX = useRef<number | null>(null)
 
   const imageCount = product.images.length
   const currentImage = product.images[currentImgIdx]?.url ?? ''
@@ -32,13 +28,33 @@ export function ProductDetailView({ product, storeSettings, onBack, onStoreClick
   const nextImg = () => setCurrentImgIdx((prev) => (prev === imageCount - 1 ? 0 : prev + 1))
   const prevImg = () => setCurrentImgIdx((prev) => (prev === 0 ? imageCount - 1 : prev - 1))
 
-  const handleBuyWhatsApp = () => {
-    const number = storeSettings.whatsappNumber
-    if (number === '') {
-      window.alert('Nomor WhatsApp toko belum diatur oleh admin.')
+  const handleTouchStart = (e: TouchEvent<HTMLDivElement>) => {
+    touchStartX.current = e.touches[0]?.clientX ?? null
+  }
+
+  const handleTouchEnd = (e: TouchEvent<HTMLDivElement>) => {
+    const startX = touchStartX.current
+    touchStartX.current = null
+
+    if (startX === null || imageCount < 2) {
       return
     }
 
+    const deltaX = (e.changedTouches[0]?.clientX ?? startX) - startX
+
+    // Ambang batas mencegah foto berpindah saat halaman digulir.
+    if (Math.abs(deltaX) < SWIPE_THRESHOLD) {
+      return
+    }
+
+    if (deltaX < 0) {
+      nextImg()
+    } else {
+      prevImg()
+    }
+  }
+
+  const handleBuyWhatsApp = () => {
     const lines = [
       'Halo, saya tertarik untuk membeli produk ini dari katalog Anda:',
       '',
@@ -57,34 +73,15 @@ export function ProductDetailView({ product, storeSettings, onBack, onStoreClick
       'Apakah stoknya masih tersedia?',
     )
 
-    window.open(`https://wa.me/${number}?text=${encodeURIComponent(lines.join('\n'))}`, '_blank')
+    openWhatsApp(storeSettings.whatsappNumber, lines.join('\n'))
   }
 
-  const handleShare = async () => {
-    const url = productUrl(product.id)
-
-    if (typeof navigator.share === 'function') {
-      try {
-        await navigator.share({
-          title: product.name,
-          text: `${product.name} — ${formatRp(displayPrice)}`,
-          url,
-        })
-        return
-      } catch (err) {
-        // Pengguna menutup menu share sendiri; tidak perlu pesan apa pun.
-        if (err instanceof Error && err.name === 'AbortError') {
-          return
-        }
-      }
-    }
-
-    try {
-      await navigator.clipboard.writeText(url)
-      window.alert('Tautan produk disalin ke papan klip.')
-    } catch {
-      window.alert(`Tautan produk:\n${url}`)
-    }
+  const handleShare = () => {
+    void shareLink({
+      title: product.name,
+      text: `${product.name} — ${formatRp(displayPrice)}`,
+      url: productUrl(product.id),
+    })
   }
 
   return (
@@ -92,48 +89,51 @@ export function ProductDetailView({ product, storeSettings, onBack, onStoreClick
       <div className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-md z-50 px-3 py-3 flex items-center justify-between bg-gradient-to-b from-black/50 to-transparent">
         <button
           onClick={onBack}
+          aria-label="Kembali"
           className="w-8 h-8 rounded-full bg-black/40 text-white flex items-center justify-center backdrop-blur-sm"
         >
           <ChevronLeft size={24} />
         </button>
-        <div className="flex gap-2">
-          <button
-            onClick={() => void handleShare()}
-            className="w-8 h-8 rounded-full bg-black/40 text-white flex items-center justify-center backdrop-blur-sm"
-          >
-            <Share2 size={18} />
-          </button>
-          <button className="w-8 h-8 rounded-full bg-black/40 text-white flex items-center justify-center backdrop-blur-sm relative">
-            <ShoppingCart size={18} />
-            <span className="absolute -top-1 -right-1 bg-[#ee4d2d] text-white text-[10px] px-1.5 rounded-full border border-white">
-              3
-            </span>
-          </button>
-          <button className="w-8 h-8 rounded-full bg-black/40 text-white flex items-center justify-center backdrop-blur-sm">
-            <MoreVertical size={18} />
-          </button>
-        </div>
+        <button
+          onClick={handleShare}
+          aria-label="Bagikan produk ini"
+          className="w-8 h-8 rounded-full bg-black/40 text-white flex items-center justify-center backdrop-blur-sm"
+        >
+          <Share2 size={18} />
+        </button>
       </div>
 
-      <div className="relative aspect-square bg-white">
+      <div
+        className="relative aspect-square bg-white"
+        style={{ touchAction: 'pan-y' }}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
         {currentImage === '' ? (
           <div className="w-full h-full flex items-center justify-center text-sm text-gray-400">
             Foto belum tersedia
           </div>
         ) : (
-          <img src={currentImage} alt={product.name} className="w-full h-full object-cover" />
+          <img
+            src={currentImage}
+            alt={product.name}
+            className="w-full h-full object-cover select-none"
+            draggable={false}
+          />
         )}
 
         {imageCount > 1 && (
           <>
             <button
               onClick={prevImg}
+              aria-label="Foto sebelumnya"
               className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/70 rounded-full flex items-center justify-center shadow-md text-gray-700"
             >
               <ChevronLeft size={20} />
             </button>
             <button
               onClick={nextImg}
+              aria-label="Foto berikutnya"
               className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/70 rounded-full flex items-center justify-center shadow-md text-gray-700"
             >
               <ChevronRight size={20} />
@@ -145,8 +145,26 @@ export function ProductDetailView({ product, storeSettings, onBack, onStoreClick
         )}
       </div>
 
+      {imageCount > 1 && (
+        <div className="bg-white px-3 py-2 mb-2 flex gap-2 overflow-x-auto shadow-sm">
+          {product.images.map((image, index) => (
+            <button
+              key={image.thumbUrl}
+              type="button"
+              onClick={() => setCurrentImgIdx(index)}
+              aria-label={`Buka foto ${index + 1}`}
+              className={`w-14 h-14 shrink-0 rounded-md overflow-hidden border-2 ${
+                index === currentImgIdx ? 'border-[var(--accent)]' : 'border-transparent'
+              }`}
+            >
+              <img src={image.thumbUrl} alt="" className="w-full h-full object-cover" />
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="bg-white p-3 mb-2 shadow-sm">
-        <div className="text-[#ee4d2d] text-2xl font-bold flex items-center gap-2">
+        <div className="text-[var(--accent)] text-2xl font-bold flex items-center gap-2">
           {formatRp(displayPrice)}
           {selectedVariant === null && product.originalPrice ? (
             <span className="text-gray-400 text-sm line-through font-normal">
@@ -154,12 +172,7 @@ export function ProductDetailView({ product, storeSettings, onBack, onStoreClick
             </span>
           ) : null}
         </div>
-        <h1 className="text-gray-800 text-sm font-semibold mt-1 leading-snug">
-          <span className="inline-block align-middle bg-[#ee4d2d] text-white text-[9px] px-1 py-0.5 rounded-sm mr-1">
-            Star+
-          </span>
-          {product.name}
-        </h1>
+        <h1 className="text-gray-800 text-sm font-semibold mt-1 leading-snug">{product.name}</h1>
         <div className="flex items-center gap-3 mt-3 text-xs text-gray-500">
           <div className="flex items-center text-yellow-400">
             <Star size={12} fill="currentColor" />
@@ -184,7 +197,7 @@ export function ProductDetailView({ product, storeSettings, onBack, onStoreClick
                   onClick={() => setVariantIdx(index)}
                   className={`flex items-center justify-between gap-2 border rounded-md px-3 py-2 text-left text-xs ${
                     active
-                      ? 'border-[#ee4d2d] bg-red-50 text-[#ee4d2d] font-semibold'
+                      ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)] font-semibold'
                       : 'border-gray-200 bg-white text-gray-700'
                   }`}
                 >
@@ -201,13 +214,15 @@ export function ProductDetailView({ product, storeSettings, onBack, onStoreClick
         <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center text-gray-500 overflow-hidden border border-gray-300">
           <Store size={24} />
         </div>
-        <div className="flex-1">
-          <div className="font-bold text-sm text-gray-800">{storeSettings.name}</div>
-          <div className="text-xs text-gray-500">Aktif 5 menit yang lalu</div>
+        <div className="flex-1 min-w-0">
+          <div className="font-bold text-sm text-gray-800 truncate">{storeSettings.name}</div>
+          <div className="text-xs text-gray-500">
+            {product.location === '' ? storeSettings.location : product.location}
+          </div>
         </div>
         <button
           onClick={onStoreClick}
-          className="border border-[#ee4d2d] text-[#ee4d2d] px-3 py-1 rounded-sm text-xs font-medium bg-white active:bg-orange-50"
+          className="border border-[var(--accent)] text-[var(--accent)] px-3 py-1 rounded-sm text-xs font-medium bg-white active:bg-[var(--accent-soft)]"
         >
           Kunjungi Toko
         </button>
@@ -219,17 +234,9 @@ export function ProductDetailView({ product, storeSettings, onBack, onStoreClick
       </div>
 
       <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white border-t border-gray-200 flex h-14 z-50">
-        <button className="flex flex-col items-center justify-center w-[20%] border-r border-gray-200 text-gray-600 active:bg-gray-100">
-          <MessageSquare size={20} className="mb-0.5" />
-          <span className="text-[9px]">Chat</span>
-        </button>
-        <button className="flex flex-col items-center justify-center w-[20%] text-gray-600 active:bg-gray-100">
-          <ShoppingCart size={20} className="mb-0.5" />
-          <span className="text-[9px]">Keranjang</span>
-        </button>
         <button
           onClick={handleBuyWhatsApp}
-          className="flex-1 bg-green-500 text-white font-bold text-sm flex items-center justify-center active:bg-green-600 gap-1"
+          className="flex-1 bg-green-500 text-white font-bold text-sm flex items-center justify-center active:bg-green-600"
         >
           Hubungi WhatsApp
         </button>

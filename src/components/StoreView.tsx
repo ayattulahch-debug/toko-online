@@ -3,11 +3,11 @@ import {
   ChevronLeft,
   Home as HomeIcon,
   MapPin,
-  MessageSquare,
   Search,
   Settings,
   Star,
   Store,
+  Tag,
 } from 'lucide-react'
 import type { Category, Product, StoreSettings } from '../types'
 import { ProductCard } from './ProductCard'
@@ -45,6 +45,13 @@ export function StoreView({
     )
     .filter((product) => product.name.toLowerCase().includes(searchQuery.toLowerCase()))
 
+  // Statistik ditampilkan apa adanya dari data toko, bukan angka contoh.
+  const ratedProducts = products.filter((product) => product.rating > 0)
+  const averageRating =
+    ratedProducts.length === 0
+      ? null
+      : ratedProducts.reduce((total, product) => total + product.rating, 0) / ratedProducts.length
+
   return (
     <div className="pb-16 bg-gray-100 min-h-screen">
       <div className="relative w-full h-40 bg-gray-800">
@@ -53,6 +60,7 @@ export function StoreView({
         <div className="absolute top-0 w-full px-3 py-3 flex items-center justify-between z-10">
           <button
             onClick={onHomeClick}
+            aria-label="Kembali ke beranda"
             className="w-8 h-8 rounded-full bg-black/40 text-white flex items-center justify-center backdrop-blur-sm"
           >
             <ChevronLeft size={24} />
@@ -69,6 +77,7 @@ export function StoreView({
           </div>
           <button
             onClick={onAdminClick}
+            aria-label="Buka pengaturan toko"
             className="w-8 h-8 ml-3 rounded-full bg-black/40 text-white flex items-center justify-center backdrop-blur-sm relative hover:bg-black/60"
           >
             <Settings size={18} />
@@ -85,12 +94,12 @@ export function StoreView({
           <div className="flex-1 text-white">
             <h1 className="font-bold text-base leading-tight drop-shadow-md">{storeSettings.name}</h1>
             <p className="text-[10px] text-white/80 flex items-center gap-1 mt-0.5">
-              <MapPin size={10} /> {storeSettings.location} • Aktif 2 menit lalu
+              <MapPin size={10} /> {storeSettings.location}
             </p>
           </div>
           <button
             onClick={onAdminClick}
-            className={`border border-white px-3 py-1 rounded-sm text-xs font-medium backdrop-blur-sm flex items-center gap-1 ${isAdmin ? 'bg-orange-500 text-white' : 'bg-black/20 text-white hover:bg-white/20'}`}
+            className={`border border-white px-3 py-1 rounded-sm text-xs font-medium backdrop-blur-sm flex items-center gap-1 ${isAdmin ? 'bg-[var(--accent)] text-white' : 'bg-black/20 text-white hover:bg-white/20'}`}
           >
             {isAdmin ? (
               <>
@@ -105,21 +114,23 @@ export function StoreView({
 
       <div className="bg-white flex py-3 border-b shadow-sm">
         <div className="flex-1 border-r text-center">
-          <div className="text-[#ee4d2d] font-bold text-sm">4.9/5.0</div>
+          <div className="text-[var(--accent)] font-bold text-sm">
+            {averageRating === null ? '—' : `${averageRating.toFixed(1)}/5.0`}
+          </div>
           <div className="text-[10px] text-gray-500 flex items-center justify-center gap-1">
             <Star size={10} /> Penilaian
           </div>
         </div>
         <div className="flex-1 border-r text-center">
-          <div className="text-[#ee4d2d] font-bold text-sm">1.2RB</div>
+          <div className="text-[var(--accent)] font-bold text-sm">{products.length}</div>
           <div className="text-[10px] text-gray-500 flex items-center justify-center gap-1">
-            <Store size={10} /> Pengikut
+            <Store size={10} /> Produk
           </div>
         </div>
         <div className="flex-1 text-center">
-          <div className="text-[#ee4d2d] font-bold text-sm">98%</div>
+          <div className="text-[var(--accent)] font-bold text-sm">{categories.length}</div>
           <div className="text-[10px] text-gray-500 flex items-center justify-center gap-1">
-            <MessageSquare size={10} /> Performa Chat
+            <Tag size={10} /> Kategori
           </div>
         </div>
       </div>
@@ -146,7 +157,7 @@ export function StoreView({
         <button
           type="button"
           onClick={onHomeClick}
-          className="flex flex-col items-center hover:text-[#ee4d2d]"
+          className="flex flex-col items-center hover:text-[var(--accent)]"
         >
           <HomeIcon size={20} />
           <span>Rekomendasi</span>
@@ -164,7 +175,7 @@ export function StoreView({
                 window.scrollTo({ top: 300, behavior: 'smooth' })
               }}
               className={`flex flex-col items-center max-w-[70px] ${
-                active ? 'text-[#ee4d2d]' : 'hover:text-[#ee4d2d]'
+                active ? 'text-[var(--accent)]' : 'hover:text-[var(--accent)]'
               }`}
             >
               <span className="text-[18px] leading-5">{category.icon}</span>
@@ -173,7 +184,7 @@ export function StoreView({
           )
         })}
 
-        <button type="button" className="flex flex-col items-center text-[#ee4d2d]">
+        <button type="button" className="flex flex-col items-center text-[var(--accent)]">
           <Store size={20} />
           <span>Toko Saya</span>
         </button>

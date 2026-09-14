@@ -1,11 +1,21 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 import { Check, ChevronLeft, KeyRound, Loader2, Upload } from 'lucide-react'
 import { uploadImage } from '../api'
+import { accentShades } from '../lib/color'
 import { compressImage } from '../lib/image'
 import type { Category, StoreSettings } from '../types'
 
 const MAX_BOTTOM_CATEGORIES = 3
+
+const ACCENT_PRESETS = [
+  { name: 'Oranye', color: '#ee4d2d' },
+  { name: 'Merah marun', color: '#b91c1c' },
+  { name: 'Biru', color: '#2563eb' },
+  { name: 'Hijau', color: '#059669' },
+  { name: 'Ungu', color: '#7c3aed' },
+  { name: 'Hitam', color: '#111827' },
+]
 
 interface AdminSettingsViewProps {
   storeSettings: StoreSettings
@@ -33,6 +43,23 @@ export function AdminSettingsView({
   const [changingPassword, setChangingPassword] = useState(false)
   const [passwordError, setPasswordError] = useState<string | null>(null)
   const [passwordNotice, setPasswordNotice] = useState<string | null>(null)
+
+  // Pratinjau langsung: warna ikut berubah begitu dipilih, dan dikembalikan ke
+  // warna tersimpan kalau halaman ini ditinggalkan tanpa menyimpan.
+  useEffect(() => {
+    const root = document.documentElement
+
+    const apply = (hex: string) => {
+      const shades = accentShades(hex)
+      root.style.setProperty('--accent', shades.accent)
+      root.style.setProperty('--accent-dark', shades.dark)
+      root.style.setProperty('--accent-soft', shades.soft)
+    }
+
+    apply(settings.accentColor)
+
+    return () => apply(storeSettings.accentColor)
+  }, [settings.accentColor, storeSettings.accentColor])
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -135,7 +162,7 @@ export function AdminSettingsView({
               name="name"
               value={settings.name}
               onChange={handleChange}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 mt-1 text-sm outline-none focus:border-[#ee4d2d]"
+              className="w-full border border-gray-300 rounded-md px-3 py-2 mt-1 text-sm outline-none focus:border-[var(--accent)]"
             />
           </div>
 
@@ -146,7 +173,7 @@ export function AdminSettingsView({
               name="location"
               value={settings.location}
               onChange={handleChange}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 mt-1 text-sm outline-none focus:border-[#ee4d2d]"
+              className="w-full border border-gray-300 rounded-md px-3 py-2 mt-1 text-sm outline-none focus:border-[var(--accent)]"
             />
           </div>
 
@@ -158,7 +185,7 @@ export function AdminSettingsView({
               value={settings.whatsappNumber}
               onChange={handleChange}
               placeholder="6281234567890"
-              className="w-full border border-gray-300 rounded-md px-3 py-2 mt-1 text-sm outline-none focus:border-[#ee4d2d]"
+              className="w-full border border-gray-300 rounded-md px-3 py-2 mt-1 text-sm outline-none focus:border-[var(--accent)]"
             />
             <p className="text-[10px] text-gray-400 mt-1">
               Format internasional tanpa tanda plus, contoh <span className="font-mono">6281234567890</span>.
@@ -176,7 +203,7 @@ export function AdminSettingsView({
               name="promoText"
               value={settings.promoText}
               onChange={handleChange}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 mt-1 text-sm outline-none focus:border-[#ee4d2d]"
+              className="w-full border border-gray-300 rounded-md px-3 py-2 mt-1 text-sm outline-none focus:border-[var(--accent)]"
             />
           </div>
 
@@ -209,6 +236,47 @@ export function AdminSettingsView({
           </div>
         </div>
 
+        <div className="bg-white p-4 rounded-md shadow-sm border border-gray-200">
+          <h2 className="text-sm font-bold text-gray-800 border-b pb-2 mb-3">Warna Tema</h2>
+
+          <div className="flex items-center gap-3">
+            <input
+              type="color"
+              aria-label="Pilih warna tema toko"
+              value={settings.accentColor}
+              onChange={(e) => setSettings((prev) => ({ ...prev, accentColor: e.target.value }))}
+              className="w-14 h-14 border border-gray-300 rounded-md cursor-pointer bg-white p-1"
+            />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-gray-600">Warna aksen toko</p>
+              <p className="text-[11px] text-gray-400 font-mono mt-0.5">{settings.accentColor}</p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2 mt-3">
+            {ACCENT_PRESETS.map((preset) => (
+              <button
+                key={preset.color}
+                type="button"
+                aria-label={`Pakai warna ${preset.name}`}
+                onClick={() => setSettings((prev) => ({ ...prev, accentColor: preset.color }))}
+                style={{ backgroundColor: preset.color }}
+                className={`w-8 h-8 rounded-full border-2 ${
+                  settings.accentColor.toLowerCase() === preset.color
+                    ? 'border-gray-800'
+                    : 'border-transparent'
+                }`}
+              />
+            ))}
+          </div>
+
+          <p className="text-[10px] text-gray-400 mt-3">
+            Warna ini dipakai untuk tombol, harga, dan sorotan di seluruh halaman toko. Perubahan
+            terlihat langsung di halaman ini, dan tersimpan untuk pengunjung setelah kamu menekan
+            Simpan Pengaturan.
+          </p>
+        </div>
+
         {error !== null && (
           <p className="text-xs text-red-500 bg-red-50 border border-red-200 rounded-md p-3">{error}</p>
         )}
@@ -238,7 +306,7 @@ export function AdminSettingsView({
                       key={category.id}
                       className={`flex items-center gap-2 border rounded-md px-2 py-2 text-xs ${
                         checked
-                          ? 'border-[#ee4d2d] bg-red-50 text-[#ee4d2d] font-semibold'
+                          ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)] font-semibold'
                           : penuh
                             ? 'border-gray-100 bg-gray-50 text-gray-400'
                             : 'border-gray-200 bg-white text-gray-700 cursor-pointer'
@@ -246,7 +314,7 @@ export function AdminSettingsView({
                     >
                       <input
                         type="checkbox"
-                        className="accent-[#ee4d2d]"
+                        className="accent-[var(--accent)]"
                         checked={checked}
                         disabled={penuh}
                         onChange={() => toggleBottomCategory(category.id)}
@@ -276,7 +344,7 @@ export function AdminSettingsView({
                 value={oldPassword}
                 onChange={(e) => setOldPassword(e.target.value)}
                 required
-                className="w-full border border-gray-300 rounded-md px-3 py-2 mt-1 text-sm outline-none focus:border-[#ee4d2d]"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 mt-1 text-sm outline-none focus:border-[var(--accent)]"
               />
             </div>
             <div>
@@ -287,7 +355,7 @@ export function AdminSettingsView({
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 required
-                className="w-full border border-gray-300 rounded-md px-3 py-2 mt-1 text-sm outline-none focus:border-[#ee4d2d]"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 mt-1 text-sm outline-none focus:border-[var(--accent)]"
               />
             </div>
             <div>
@@ -298,7 +366,7 @@ export function AdminSettingsView({
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
-                className="w-full border border-gray-300 rounded-md px-3 py-2 mt-1 text-sm outline-none focus:border-[#ee4d2d]"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 mt-1 text-sm outline-none focus:border-[var(--accent)]"
               />
             </div>
 
@@ -321,7 +389,7 @@ export function AdminSettingsView({
         <button
           onClick={() => void handleSave()}
           disabled={saving || bannerUploading}
-          className="w-full bg-[#ee4d2d] text-white font-bold py-3 rounded-md shadow-md active:bg-orange-600 flex items-center justify-center gap-2 disabled:opacity-60"
+          className="w-full bg-[var(--accent)] text-white font-bold py-3 rounded-md shadow-md active:bg-[var(--accent-dark)] flex items-center justify-center gap-2 disabled:opacity-60"
         >
           {saving ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}
           {saving ? 'Menyimpan...' : 'Simpan Pengaturan'}

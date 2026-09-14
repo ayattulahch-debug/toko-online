@@ -21,6 +21,11 @@ if (count($bottomCategoryIds) > MAX_BOTTOM_CATEGORIES) {
     json_error('Maksimal ' . MAX_BOTTOM_CATEGORIES . ' kategori untuk bilah bawah.');
 }
 
+$accentColor = strtolower(trim((string) ($body['accentColor'] ?? '')));
+if (preg_match('/^#[0-9a-f]{6}$/', $accentColor) !== 1) {
+    json_error('Warna tema tidak valid. Gunakan format #rrggbb.');
+}
+
 if ($name === '') {
     json_error('Nama toko wajib diisi.');
 }
@@ -57,15 +62,17 @@ $oldBanner = (string) ($stmt->fetchColumn() ?: '');
 
 try {
     $stmt = $pdo->prepare(
-        'INSERT INTO store_settings (id, name, location, promo_text, banner, whatsapp_number, bottom_category_ids)
-         VALUES (1, ?, ?, ?, ?, ?, ?)
+        'INSERT INTO store_settings
+            (id, name, location, promo_text, banner, whatsapp_number, bottom_category_ids, accent_color)
+         VALUES (1, ?, ?, ?, ?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE
             name = VALUES(name),
             location = VALUES(location),
             promo_text = VALUES(promo_text),
             banner = VALUES(banner),
             whatsapp_number = VALUES(whatsapp_number),
-            bottom_category_ids = VALUES(bottom_category_ids)'
+            bottom_category_ids = VALUES(bottom_category_ids),
+            accent_color = VALUES(accent_color)'
     );
     $stmt->execute([
         $name,
@@ -74,6 +81,7 @@ try {
         $banner,
         $whatsappNumber,
         implode(',', $bottomCategoryIds),
+        $accentColor,
     ]);
 } catch (PDOException $e) {
     json_error('Gagal menyimpan pengaturan toko.', 500);

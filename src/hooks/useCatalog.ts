@@ -16,6 +16,7 @@ function normalizeCatalog(catalog: Catalog): Catalog {
     settings: {
       ...catalog.settings,
       bottomCategoryIds: catalog.settings.bottomCategoryIds ?? [],
+      accentColor: catalog.settings.accentColor ?? '#ee4d2d',
     },
   }
 }
