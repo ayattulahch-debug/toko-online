@@ -104,11 +104,24 @@ try {
         );
         $stmt->execute([$name, $price, $originalPrice, $sold, $location, $rating, $description, $id]);
     } else {
+        // Produk baru diletakkan di urutan paling belakang; urutannya bisa
+        // diubah dari dashboard.
+        $nextOrder = (int) $pdo->query('SELECT COALESCE(MAX(sort_order), 0) + 1 FROM products')->fetchColumn();
+
         $stmt = $pdo->prepare(
-            'INSERT INTO products (name, price, original_price, sold, location, rating, description)
-             VALUES (?, ?, ?, ?, ?, ?, ?)'
+            'INSERT INTO products (name, price, original_price, sold, location, rating, description, sort_order)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
         );
-        $stmt->execute([$name, $price, $originalPrice, $sold, $location, $rating, $description]);
+        $stmt->execute([
+            $name,
+            $price,
+            $originalPrice,
+            $sold,
+            $location,
+            $rating,
+            $description,
+            $nextOrder,
+        ]);
         $id = (int) $pdo->lastInsertId();
     }
 

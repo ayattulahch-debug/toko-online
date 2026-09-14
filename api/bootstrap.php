@@ -100,6 +100,14 @@ const REQUIRED_COLUMNS = [
         ALTER TABLE store_settings
         ADD COLUMN bottom_category_ids VARCHAR(255) NOT NULL DEFAULT ''
         SQL,
+    'store_settings.accent_color' => <<<'SQL'
+        ALTER TABLE store_settings
+        ADD COLUMN accent_color VARCHAR(7) NOT NULL DEFAULT '#ee4d2d'
+        SQL,
+    'products.sort_order' => <<<'SQL'
+        ALTER TABLE products
+        ADD COLUMN sort_order INT NOT NULL DEFAULT 0
+        SQL,
 ];
 
 function ensure_schema(PDO $pdo): void
@@ -134,22 +142,41 @@ function ensure_schema(PDO $pdo): void
         }
     }
 
-    foreach (REQUIRED_COLUMNS as $key => $sql) {
-        [$table, $column] = explode('.', $key, 2);
+    if (REQUIRED_COLUMNS === []) {
+        return;
+    }
 
-        try {
-            $stmt = $pdo->prepare(
-                'SELECT COUNT(*) FROM information_schema.columns
-                 WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?'
-            );
-            $stmt->execute([$table, $column]);
+    // Semua kolom diperiksa dalam satu kueri, bukan satu kueri per kolom, supaya
+    // beban database setiap permintaan tetap kecil.
+    $tables = [];
+    foreach (array_keys(REQUIRED_COLUMNS) as $key) {
+        $tables[explode('.', $key, 2)[0]] = true;
+    }
 
-            if ((int) $stmt->fetchColumn() === 0) {
+    $tableNames = array_keys($tables);
+    $placeholders = implode(',', array_fill(0, count($tableNames), '?'));
+
+    try {
+        $stmt = $pdo->prepare(
+            'SELECT table_name, column_name FROM information_schema.columns
+             WHERE table_schema = DATABASE() AND table_name IN (' . $placeholders . ')'
+        );
+        $stmt->execute($tableNames);
+
+        $existing = [];
+        foreach ($stmt->fetchAll() as $row) {
+            $tableName = (string) ($row['table_name'] ?? $row['TABLE_NAME'] ?? '');
+            $columnName = (string) ($row['column_name'] ?? $row['COLUMN_NAME'] ?? '');
+            $existing[$tableName . '.' . $columnName] = true;
+        }
+
+        foreach (REQUIRED_COLUMNS as $key => $sql) {
+            if (!isset($existing[$key])) {
                 $pdo->exec($sql);
             }
-        } catch (PDOException $e) {
-            // Sama seperti tabel: kegagalan di sini tidak boleh mematikan situs.
         }
+    } catch (PDOException $e) {
+        // Sama seperti tabel: kegagalan di sini tidak boleh mematikan situs.
     }
 }
 

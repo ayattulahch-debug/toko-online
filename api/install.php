@@ -146,6 +146,7 @@ $tables = [
         rating DECIMAL(2,1) NOT NULL DEFAULT 5.0,
         description TEXT NOT NULL,
         is_active TINYINT(1) NOT NULL DEFAULT 1,
+        sort_order INT NOT NULL DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         INDEX idx_active (is_active)
@@ -189,6 +190,7 @@ $tables = [
         banner VARCHAR(255) NOT NULL,
         whatsapp_number VARCHAR(20) NOT NULL,
         bottom_category_ids VARCHAR(255) NOT NULL DEFAULT '',
+        accent_color VARCHAR(7) NOT NULL DEFAULT '#ee4d2d',
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     SQL,
