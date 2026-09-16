@@ -83,8 +83,18 @@ export function HomeView({
       </div>
 
       <div className="w-full bg-white mb-2">
-        <div className="aspect-[21/9] bg-gradient-to-r from-[var(--accent-dark)] to-[var(--accent)] flex items-center justify-center text-white font-bold text-xl px-4 text-center">
-          {storeSettings.promoText}
+        <div className="relative aspect-[21/9] overflow-hidden bg-gradient-to-r from-[var(--accent-dark)] to-[var(--accent)] flex items-center justify-center px-4 text-center">
+          {storeSettings.homeBanner !== '' && (
+            <img
+              src={storeSettings.homeBanner}
+              alt={`Banner ${storeSettings.name}`}
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+          )}
+          {storeSettings.homeBanner !== '' && storeSettings.promoText !== '' && (
+            <div className="absolute inset-0 bg-black/40" />
+          )}
+          <span className="relative text-white font-bold text-xl">{storeSettings.promoText}</span>
         </div>
       </div>
 

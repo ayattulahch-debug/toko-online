@@ -38,6 +38,7 @@ export interface StoreSettings {
   location: string
   promoText: string
   banner: string
+  homeBanner: string
   whatsappNumber: string
   bottomCategoryIds: number[]
   accentColor: string

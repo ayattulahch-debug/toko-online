@@ -191,7 +191,7 @@ export function AdminDashboardView({
         {tab === 'categories' && (
           <div className="text-center py-10">
             <Layout size={40} className="mx-auto text-gray-300 mb-3" />
-            <p className="text-sm text-gray-600 mb-4">Kelola ikon dan nama kategori di halaman utama.</p>
+            <p className="text-sm text-gray-600 mb-4">Kelola ikon, nama, dan produk tiap kategori di halaman utama.</p>
             <button
               onClick={() => onNavigate({ name: 'admin_categories' })}
               className="bg-gray-800 text-white px-4 py-2 rounded-md font-bold text-sm shadow-md"

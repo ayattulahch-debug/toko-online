@@ -9,6 +9,7 @@ export type Route =
   | { name: 'admin_dashboard' }
   | { name: 'admin_product'; id: number }
   | { name: 'admin_categories' }
+  | { name: 'admin_category_products'; id: number }
   | { name: 'admin_settings' }
 
 export function parseHash(hash: string): Route {
@@ -40,6 +41,10 @@ export function parseHash(hash: string): Route {
       return { name: 'admin_login' }
     }
     if (parts[1] === 'kategori') {
+      const id = Number(parts[2])
+      if (parts[3] === 'produk' && Number.isInteger(id) && id > 0) {
+        return { name: 'admin_category_products', id }
+      }
       return { name: 'admin_categories' }
     }
     if (parts[1] === 'tampilan') {
@@ -73,6 +78,8 @@ export function routeToHash(route: Route): string {
       return route.id > 0 ? `#/admin/produk/${route.id}` : '#/admin/produk/baru'
     case 'admin_categories':
       return '#/admin/kategori'
+    case 'admin_category_products':
+      return `#/admin/kategori/${route.id}/produk`
     case 'admin_settings':
       return '#/admin/tampilan'
     default:

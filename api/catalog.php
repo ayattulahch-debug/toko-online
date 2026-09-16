@@ -87,7 +87,7 @@ foreach (db()->query('SELECT id, icon, name FROM categories ORDER BY sort_order 
 }
 
 $settingsRow = db()->query(
-    'SELECT name, location, promo_text, banner, whatsapp_number, bottom_category_ids, accent_color
+    'SELECT name, location, promo_text, banner, home_banner, whatsapp_number, bottom_category_ids, accent_color
      FROM store_settings WHERE id = 1'
 )->fetch();
 
@@ -107,6 +107,7 @@ json_out([
         'location' => (string) ($settingsRow['location'] ?? ''),
         'promoText' => (string) ($settingsRow['promo_text'] ?? ''),
         'banner' => (string) ($settingsRow['banner'] ?? ''),
+        'homeBanner' => (string) ($settingsRow['home_banner'] ?? ''),
         'whatsappNumber' => (string) ($settingsRow['whatsapp_number'] ?? ''),
         'bottomCategoryIds' => $bottomCategoryIds,
         'accentColor' => (string) ($settingsRow['accent_color'] ?? '#ee4d2d'),

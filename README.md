@@ -6,12 +6,14 @@ Dibuat dengan **Vite + React + TypeScript + Tailwind CSS v4** di sisi tampilan, 
 
 ## Fitur
 
-- Beranda: pencarian produk, banner promo, grid kategori, dan daftar produk
+- Beranda: pencarian produk, banner promo (fotonya bisa diganti sendiri oleh penjual),
+  grid kategori, dan daftar produk
 - Filter cepat: Rekomendasi / Termurah / Premium
 - Detail produk: galeri foto, harga coret, rating, deskripsi, tombol chat WhatsApp
 - Halaman toko: banner, statistik, dan katalog produk
-- Panel admin (login server-side): tambah / edit / hapus produk, kelola kategori,
-  atur nama toko, banner, dan nomor WhatsApp, serta ganti password
+- Panel admin (login server-side): tambah / edit / hapus produk, kelola kategori beserta
+  produk yang masuk ke dalamnya, atur nama toko, kedua banner, dan nomor WhatsApp,
+  serta ganti password
 - Gambar produk dikompres otomatis di browser sebelum diunggah, jadi hemat ruang hosting
 - Katalog tersimpan di database, sehingga **semua pengunjung melihat data yang sama**
 
@@ -40,6 +42,7 @@ api/                              backend PHP (dibaca langsung oleh cPanel, tida
   catalog.php                     GET publik: produk + kategori + pengaturan
   products.php                    tambah / edit / hapus produk
   categories.php                  simpan daftar kategori
+  category-products.php           pilih produk mana saja yang masuk satu kategori
   settings.php                    simpan pengaturan toko
   upload.php                      terima gambar (full + thumbnail)
 

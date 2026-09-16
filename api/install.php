@@ -188,6 +188,7 @@ $tables = [
         location VARCHAR(150) NOT NULL,
         promo_text VARCHAR(255) NOT NULL,
         banner VARCHAR(255) NOT NULL,
+        home_banner VARCHAR(255) NOT NULL DEFAULT '',
         whatsapp_number VARCHAR(20) NOT NULL,
         bottom_category_ids VARCHAR(255) NOT NULL DEFAULT '',
         accent_color VARCHAR(7) NOT NULL DEFAULT '#ee4d2d',

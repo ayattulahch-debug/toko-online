@@ -126,6 +126,16 @@ export function saveSettings(settings: StoreSettings): Promise<{ ok: boolean }> 
   })
 }
 
+export function saveCategoryProducts(
+  categoryId: number,
+  productIds: number[],
+): Promise<{ ok: boolean }> {
+  return request<{ ok: boolean }>('/category-products.php', {
+    method: 'POST',
+    body: JSON.stringify({ categoryId, productIds }),
+  })
+}
+
 export function uploadImage(full: Blob, thumb?: Blob): Promise<ProductImage> {
   const form = new FormData()
   form.append('file', full, 'foto-full.webp')

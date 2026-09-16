@@ -14,6 +14,7 @@ $name = trim((string) ($body['name'] ?? ''));
 $location = trim((string) ($body['location'] ?? ''));
 $promoText = trim((string) ($body['promoText'] ?? ''));
 $banner = trim((string) ($body['banner'] ?? ''));
+$homeBanner = trim((string) ($body['homeBanner'] ?? ''));
 $whatsappNumber = normalize_whatsapp((string) ($body['whatsappNumber'] ?? ''));
 $bottomCategoryIds = normalize_category_ids($body['bottomCategoryIds'] ?? null);
 
@@ -41,6 +42,11 @@ if (mb_strlen($promoText) > 255) {
 if ($banner === '' || is_valid_image_url($banner) === false) {
     json_error('Banner toko belum diisi atau tidak valid.');
 }
+// Banner beranda bersifat opsional: kalau dikosongkan, beranda kembali memakai
+// latar gradien. Ini menjaga toko lama tetap bisa menyimpan pengaturan.
+if ($homeBanner !== '' && is_valid_image_url($homeBanner) === false) {
+    json_error('Banner beranda tidak valid. Silakan upload ulang fotonya.');
+}
 if ($whatsappNumber === '' || strlen($whatsappNumber) < 10 || strlen($whatsappNumber) > 15) {
     json_error('Nomor WhatsApp tidak valid. Contoh: 6281234567890.');
 }
@@ -56,20 +62,23 @@ if ($bottomCategoryIds !== []) {
     $bottomCategoryIds = array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
 }
 
-$stmt = $pdo->prepare('SELECT banner FROM store_settings WHERE id = 1');
+$stmt = $pdo->prepare('SELECT banner, home_banner FROM store_settings WHERE id = 1');
 $stmt->execute();
-$oldBanner = (string) ($stmt->fetchColumn() ?: '');
+$oldRow = $stmt->fetch();
+$oldBanner = (string) ($oldRow['banner'] ?? '');
+$oldHomeBanner = (string) ($oldRow['home_banner'] ?? '');
 
 try {
     $stmt = $pdo->prepare(
         'INSERT INTO store_settings
-            (id, name, location, promo_text, banner, whatsapp_number, bottom_category_ids, accent_color)
-         VALUES (1, ?, ?, ?, ?, ?, ?, ?)
+            (id, name, location, promo_text, banner, home_banner, whatsapp_number, bottom_category_ids, accent_color)
+         VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE
             name = VALUES(name),
             location = VALUES(location),
             promo_text = VALUES(promo_text),
             banner = VALUES(banner),
+            home_banner = VALUES(home_banner),
             whatsapp_number = VALUES(whatsapp_number),
             bottom_category_ids = VALUES(bottom_category_ids),
             accent_color = VALUES(accent_color)'
@@ -79,6 +88,7 @@ try {
         $location,
         $promoText,
         $banner,
+        $homeBanner,
         $whatsappNumber,
         implode(',', $bottomCategoryIds),
         $accentColor,
@@ -89,6 +99,10 @@ try {
 
 if ($oldBanner !== '' && $oldBanner !== $banner) {
     delete_upload_file($oldBanner);
+}
+
+if ($oldHomeBanner !== '' && $oldHomeBanner !== $homeBanner) {
+    delete_upload_file($oldHomeBanner);
 }
 
 json_out(['ok' => true]);

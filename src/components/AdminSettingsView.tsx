@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
-import { Check, ChevronLeft, KeyRound, Loader2, Upload } from 'lucide-react'
+import { Check, ChevronLeft, KeyRound, Loader2, Trash2, Upload } from 'lucide-react'
 import { uploadImage } from '../api'
 import { accentShades } from '../lib/color'
 import { compressImage } from '../lib/image'
@@ -36,6 +36,7 @@ export function AdminSettingsView({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [bannerUploading, setBannerUploading] = useState(false)
+  const [homeBannerUploading, setHomeBannerUploading] = useState(false)
 
   const [oldPassword, setOldPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
@@ -96,6 +97,25 @@ export function AdminSettingsView({
       setError(err instanceof Error ? err.message : 'Gagal mengunggah banner.')
     } finally {
       setBannerUploading(false)
+    }
+  }
+
+  const handleHomeBannerUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (file === undefined) return
+
+    setHomeBannerUploading(true)
+    setError(null)
+
+    try {
+      const compressed = await compressImage(file)
+      const uploaded = await uploadImage(compressed.full)
+      setSettings((prev) => ({ ...prev, homeBanner: uploaded.url }))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Gagal mengunggah banner beranda.')
+    } finally {
+      setHomeBannerUploading(false)
     }
   }
 
@@ -207,6 +227,62 @@ export function AdminSettingsView({
             />
           </div>
 
+          <div className="mb-4">
+            <label className="text-xs font-semibold text-gray-600 block mb-2">
+              Banner Beranda (Foto)
+            </label>
+            <div className="relative w-full aspect-[21/9] border border-gray-300 rounded-md overflow-hidden bg-gray-100 group">
+              {settings.homeBanner === '' ? (
+                <div className="w-full h-full flex flex-col items-center justify-center text-xs text-gray-400 bg-gradient-to-r from-[var(--accent-dark)] to-[var(--accent)]">
+                  <span className="text-white font-bold">Belum ada foto</span>
+                  <span className="text-white/80 mt-0.5">Beranda memakai latar warna tema</span>
+                </div>
+              ) : (
+                <img
+                  src={settings.homeBanner}
+                  alt="Banner beranda"
+                  className="w-full h-full object-cover"
+                />
+              )}
+
+              {homeBannerUploading ? (
+                <div className="absolute inset-0 bg-black/50 flex items-center justify-center text-white">
+                  <Loader2 size={24} className="animate-spin" />
+                </div>
+              ) : (
+                <>
+                  <label className="absolute inset-0 bg-black/35 group-hover:bg-black/55 transition-colors flex flex-col items-center justify-center text-white cursor-pointer">
+                    <Upload size={22} className="mb-1" />
+                    <span className="text-xs font-medium">
+                      {settings.homeBanner === '' ? 'Upload Foto Banner' : 'Ganti Foto Banner'}
+                    </span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => void handleHomeBannerUpload(e)}
+                    />
+                  </label>
+
+                  {settings.homeBanner !== '' && (
+                    <button
+                      type="button"
+                      aria-label="Hapus banner beranda"
+                      onClick={() => setSettings((prev) => ({ ...prev, homeBanner: '' }))}
+                      className="absolute top-2 right-2 z-10 bg-white/90 text-red-500 p-1.5 rounded-full shadow-md active:bg-white"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+            <p className="text-[10px] text-gray-400 mt-1">
+              Foto ini tampil di kotak paling atas beranda. Pakai foto mendatar/lanskap (rasio
+              &plusmn;21:9) supaya tidak terpotong. Foto otomatis diperkecil sebelum diunggah.
+            </p>
+          </div>
+
           <div>
             <label className="text-xs font-semibold text-gray-600 block mb-2">Banner Profil Toko</label>
             <div className="relative w-full h-32 border border-gray-300 rounded-md overflow-hidden bg-gray-100 group">
@@ -223,7 +299,7 @@ export function AdminSettingsView({
                   <Loader2 size={24} className="animate-spin" />
                 </div>
               ) : (
-                <label className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center text-white cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity">
+                <label className="absolute inset-0 bg-black/35 group-hover:bg-black/55 transition-colors flex flex-col items-center justify-center text-white cursor-pointer">
                   <Upload size={24} className="mb-1" />
                   <span className="text-xs font-medium">Ubah Banner</span>
                   <input type="file" accept="image/*" className="hidden" onChange={(e) => void handleBannerUpload(e)} />
@@ -231,7 +307,7 @@ export function AdminSettingsView({
               )}
             </div>
             <p className="text-[10px] text-gray-400 mt-1">
-              Rekomendasi ukuran rasio lanskap. Sentuh gambar/hover untuk mengubah.
+              Tampil di bagian atas halaman Toko Saya. Tekan gambar untuk menggantinya.
             </p>
           </div>
         </div>
@@ -388,7 +464,7 @@ export function AdminSettingsView({
       <div className="p-4 bg-white border-t border-gray-200 sticky bottom-0">
         <button
           onClick={() => void handleSave()}
-          disabled={saving || bannerUploading}
+          disabled={saving || bannerUploading || homeBannerUploading}
           className="w-full bg-[var(--accent)] text-white font-bold py-3 rounded-md shadow-md active:bg-[var(--accent-dark)] flex items-center justify-center gap-2 disabled:opacity-60"
         >
           {saving ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}

@@ -6,11 +6,13 @@ import {
   login,
   logout,
   saveCategories,
+  saveCategoryProducts,
   saveProduct,
   saveProductOrder,
   saveSettings,
   setToken,
 } from './api'
+import { AdminCategoryProductsView } from './components/AdminCategoryProductsView'
 import { AdminCategoryView } from './components/AdminCategoryView'
 import { AdminDashboardView } from './components/AdminDashboardView'
 import { AdminEditProductView } from './components/AdminEditProductView'
@@ -99,6 +101,11 @@ export default function App() {
 
   const handleSaveCategories = async (categories: Category[]) => {
     await saveCategories(categories)
+    await reload()
+  }
+
+  const handleSaveCategoryProducts = async (categoryId: number, productIds: number[]) => {
+    await saveCategoryProducts(categoryId, productIds)
     await reload()
   }
 
@@ -231,6 +238,28 @@ export default function App() {
         )
       }
 
+      case 'admin_category_products': {
+        if (!isAdmin) {
+          return loginScreen
+        }
+
+        const category = data.categories.find((item) => item.id === route.id)
+        if (category === undefined) {
+          return notFoundScreen('Kategori tidak ditemukan', () =>
+            navigate({ name: 'admin_categories' }),
+          )
+        }
+
+        return (
+          <AdminCategoryProductsView
+            category={category}
+            products={data.products}
+            onSave={handleSaveCategoryProducts}
+            onBack={() => navigate({ name: 'admin_categories' })}
+          />
+        )
+      }
+
       case 'admin_categories':
         if (!isAdmin) {
           return loginScreen
@@ -239,6 +268,9 @@ export default function App() {
           <AdminCategoryView
             categories={data.categories}
             onSave={handleSaveCategories}
+            onManageProducts={(category) =>
+              navigate({ name: 'admin_category_products', id: category.id })
+            }
             onBack={() => navigate({ name: 'admin_dashboard' })}
           />
         )

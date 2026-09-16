@@ -1,14 +1,20 @@
 import { useState } from 'react'
-import { Check, ChevronLeft, Loader2, Plus, Trash2 } from 'lucide-react'
+import { Check, ChevronLeft, Loader2, Package, Plus, Trash2 } from 'lucide-react'
 import type { Category } from '../types'
 
 interface AdminCategoryViewProps {
   categories: Category[]
   onSave: (categories: Category[]) => Promise<void>
+  onManageProducts: (category: Category) => void
   onBack: () => void
 }
 
-export function AdminCategoryView({ categories, onSave, onBack }: AdminCategoryViewProps) {
+export function AdminCategoryView({
+  categories,
+  onSave,
+  onManageProducts,
+  onBack,
+}: AdminCategoryViewProps) {
   const [cats, setCats] = useState<Category[]>(() => categories.map((category) => ({ ...category })))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -57,7 +63,9 @@ export function AdminCategoryView({ categories, onSave, onBack }: AdminCategoryV
 
       <div className="p-4 flex-1 overflow-y-auto">
         <p className="text-xs text-gray-500 mb-4">
-          Ubah nama dan emoji icon kategori untuk halaman utama.
+          Ubah nama dan emoji icon kategori untuk halaman utama. Tombol <strong>Produk</strong>{' '}
+          dipakai untuk memilih produk mana saja yang masuk kategori tersebut — simpan dulu
+          perubahan nama/ikon sebelum mengatur produk.
         </p>
 
         <div className="space-y-3">
@@ -84,6 +92,15 @@ export function AdminCategoryView({ categories, onSave, onBack }: AdminCategoryV
                   className="w-full border border-gray-300 rounded px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
                 />
               </div>
+              <button
+                type="button"
+                onClick={() => onManageProducts(cat)}
+                disabled={cat.id <= 0}
+                aria-label={`Atur produk kategori ${cat.name}`}
+                className="mt-4 bg-gray-100 text-gray-700 p-2 rounded-md active:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <Package size={16} />
+              </button>
               <button
                 onClick={() => handleRemove(cat.id)}
                 className="mt-4 bg-red-50 text-red-500 p-2 rounded-md active:bg-red-100"
