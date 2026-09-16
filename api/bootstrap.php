@@ -104,6 +104,10 @@ const REQUIRED_COLUMNS = [
         ALTER TABLE store_settings
         ADD COLUMN accent_color VARCHAR(7) NOT NULL DEFAULT '#ee4d2d'
         SQL,
+    'store_settings.home_banner' => <<<'SQL'
+        ALTER TABLE store_settings
+        ADD COLUMN home_banner VARCHAR(255) NOT NULL DEFAULT ''
+        SQL,
     'products.sort_order' => <<<'SQL'
         ALTER TABLE products
         ADD COLUMN sort_order INT NOT NULL DEFAULT 0
