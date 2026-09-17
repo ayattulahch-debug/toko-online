@@ -173,12 +173,15 @@ Actions perlu izin memanggil API cPanel. Caranya:
    - Nama: `github-deploy`
    - Jangan centang batasan apa pun, lalu **Create** dan **salin tokennya sekarang** — token
      hanya ditampilkan sekali.
+   - **Jangan pernah menempelkan token ini ke chat, issue, atau berkas mana pun.** Nilainya hanya
+     boleh masuk ke GitHub Secrets. Kalau terlanjur bocor, langsung **Revoke** di halaman yang sama
+     lalu buat ulang.
 2. Di GitHub buka repo → **Settings → Secrets and variables → Actions → New repository secret**,
    lalu isi empat secret berikut:
 
    | Nama secret | Isi | Contoh |
    |---|---|---|
-   | `CPANEL_HOST` | domain cPanel, tanpa `https://` | `plakatkaltim.com` |
+   | `CPANEL_HOST` | hostname server, tanpa `https://` | `nirvaya.zenhosta.com` |
    | `CPANEL_USER` | username cPanel | `plakatka` |
    | `CPANEL_TOKEN` | token dari langkah 1 | `ABCDEF...` |
    | `CPANEL_REPO_ROOT` | folder repo di server | `/home/plakatka/public_html` |
@@ -191,6 +194,32 @@ Actions perlu izin memanggil API cPanel. Caranya:
 
 Selama keempat secret itu belum diisi, langkah tersebut dilewati tanpa menggagalkan workflow,
 jadi deploy lewat branch `deploy` tetap jalan dan bisa ditarik manual seperti sebelumnya.
+
+#### Soal `CPANEL_HOST`
+
+Isinya **bukan** domain situs dan **bukan** alamat IP, melainkan hostname server hosting. Ada dua
+syarat yang harus dipenuhi sekaligus:
+
+1. **Namanya bisa di-resolve dari internet.** GitHub Actions berjalan di server GitHub, bukan di
+   komputer ini. Perubahan berkas `hosts` di Windows hanya berlaku untuk komputer itu sendiri,
+   jadi tidak ada pengaruhnya di sini.
+2. **Sertifikat TLS-nya cocok dengan nama itu.** Saat menyambung ke `https://NAMA:2083`, `curl`
+   memeriksa apakah sertifikat server memuat `NAMA` tersebut. Kalau tidak, `curl` **menolak
+   melanjutkan** — berbeda dari browser yang masih menawarkan tombol "Lanjutkan saja". Alamat IP
+   tidak akan pernah cocok dengan sertifikat berbasis nama.
+
+Cara menemukan nilainya:
+
+- Lihat alamat di address bar browser saat cPanel terbuka, atau
+- cPanel → **Server Information** → **Hostname**, atau
+- reverse DNS dari IP server: `nslookup <IP-server>` (di server ini hasilnya `nirvaya.zenhosta.com`).
+
+Untuk memastikan dalam 10 detik: buka `https://nirvaya.zenhosta.com:2083`. Kalau halaman login
+cPanel muncul dengan gembok normal (tanpa peringatan "Tidak aman"), berarti namanya sudah benar.
+
+> Situs ini bisa diakses lewat `elaseracrylic.my.id`, tapi domain itu **belum bisa** dipakai sebagai
+> `CPANEL_HOST` selama sertifikatnya masih self-signed. Jalankan **AutoSSL** di cPanel
+> (**Security → SSL/TLS Status → Run AutoSSL**) lebih dulu, atau tetap pakai hostname server.
 
 ## Gambar dan kuota hosting
 
@@ -228,6 +257,8 @@ Cloudinary.
 | Perubahan tidak muncul di situs | Cek log GitHub Actions. Kalau langkah "Suruh cPanel menarik branch deploy" dilewati, berarti secret cPanel belum diisi — tarik manual lewat **Update from Remote** |
 | Langkah cPanel gagal dengan "errors" berisi | Biasanya token salah/kedaluwarsa, `CPANEL_USER` tidak sama dengan pembuat token, atau `CPANEL_REPO_ROOT` keliru. Perbaiki secret-nya, atau tarik manual dulu supaya situs tetap terbarui |
 | Langkah cPanel gagal "tree kotor" | Ada berkas yang diubah langsung di server sehingga `git pull` menolak. Rapikan lewat cPanel → Git™ Version Control, atau batalkan perubahan berkas tersebut di File Manager |
+| Langkah cPanel gagal `Could not resolve host` | `CPANEL_HOST` tidak ada di DNS publik. Jangan pakai IP, dan jangan andalkan berkas `hosts` di komputer lokal — lihat bagian "Soal `CPANEL_HOST`" di atas |
+| Langkah cPanel gagal `SSL certificate problem` | Sertifikat untuk nama di `CPANEL_HOST` tidak valid atau self-signed. Pakai hostname server yang sertifikatnya valid, atau jalankan AutoSSL untuk domainnya lebih dulu |
 
 ## Batasan
 

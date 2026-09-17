@@ -5,9 +5,14 @@ import { defineConfig, loadEnv } from 'vite'
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), 'VITE_')
 
-  // Selama domain belum aktif, backend diakses lewat alamat sementara cPanel.
-  // Setelah domain hidup, buat file .env.local berisi:
-  //   VITE_API_TARGET=https://plakatkaltim.com
+  // Backend dev diambil dari hosting. Isi `.env.local` (tidak ikut ter-commit):
+  //   VITE_API_TARGET=https://nirvaya.zenhosta.com
+  //   VITE_API_PREFIX=/~plakatka
+  //
+  // Situs sudah bisa diakses lewat https://elaseracrylic.my.id, tapi sertifikat
+  // domain itu masih self-signed sehingga request dari Node ditolak. Setelah
+  // AutoSSL dijalankan di cPanel, target bisa diganti jadi:
+  //   VITE_API_TARGET=https://elaseracrylic.my.id
   //   VITE_API_PREFIX=
   const apiTarget = env.VITE_API_TARGET || 'http://209.182.237.7'
   const apiPrefix = env.VITE_API_PREFIX ?? '/~plakatka'
