@@ -83,3 +83,58 @@ jobs:
           git commit -q -m "build: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
           git push -q origin HEAD:deploy
           echo "Branch deploy diperbarui."
+
+      # Meniru tombol "Update from Remote" di cPanel lewat API resmi cPanel,
+      # supaya tidak perlu ada langkah manual setelah push.
+      #
+      # Butuh 4 secret: CPANEL_HOST, CPANEL_USER, CPANEL_TOKEN, CPANEL_REPO_ROOT
+      # (CPANEL_PORT opsional). Kalau belum diisi, langkah ini dilewati tanpa
+      # menggagalkan workflow — deploy lewat branch `deploy` tetap berjalan.
+      #
+      # Sengaja diletakkan paling akhir: kalau API cPanel bermasalah, branch
+      # `deploy` sudah ter-push lebih dulu dan bisa ditarik manual.
+      - name: Suruh cPanel menarik branch deploy
+        env:
+          CPANEL_HOST: ${{ secrets.CPANEL_HOST }}
+          CPANEL_PORT: ${{ secrets.CPANEL_PORT }}
+          CPANEL_USER: ${{ secrets.CPANEL_USER }}
+          CPANEL_TOKEN: ${{ secrets.CPANEL_TOKEN }}
+          CPANEL_REPO_ROOT: ${{ secrets.CPANEL_REPO_ROOT }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${CPANEL_HOST:-}" ] || [ -z "${CPANEL_USER:-}" ] || [ -z "${CPANEL_TOKEN:-}" ] || [ -z "${CPANEL_REPO_ROOT:-}" ]; then
+            echo "Secret cPanel belum lengkap, langkah ini dilewati."
+            echo "Isi di Settings -> Secrets and variables -> Actions:"
+            echo "  CPANEL_HOST       contoh: plakatkaltim.com"
+            echo "  CPANEL_USER       username cPanel, contoh: plakatka"
+            echo "  CPANEL_TOKEN      token dari cPanel -> Security -> Manage API Tokens"
+            echo "  CPANEL_REPO_ROOT  contoh: /home/plakatka/public_html"
+            echo "  CPANEL_PORT       opsional, default 2083"
+            exit 0
+          fi
+
+          PORT="${CPANEL_PORT:-2083}"
+          URL="https://${CPANEL_HOST}:${PORT}/execute/VersionControl/update"
+          echo "Meminta cPanel menarik branch deploy..."
+
+          # --fail-with-body supaya status HTTP 4xx/5xx ikut menggagalkan langkah,
+          # tapi isi balasannya tetap tercetak untuk diperiksa.
+          RESPONSE=$(curl -sS --fail-with-body --max-time 180 \
+            -H "Authorization: cpanel ${CPANEL_USER}:${CPANEL_TOKEN}" \
+            --get \
+            --data-urlencode "repository_root=${CPANEL_REPO_ROOT}" \
+            --data-urlencode "branch=deploy" \
+            "${URL}")
+
+          echo "${RESPONSE}"
+
+          # Tanggapan sukses dari cPanel selalu memuat "errors": null.
+          # Kalau ada isinya (mis. repo tidak ditemukan atau tree kotor), berarti gagal.
+          if printf '%s' "${RESPONSE}" | grep -Eq '"errors"[[:space:]]*:[[:space:]]*null'; then
+            echo "cPanel berhasil menarik branch deploy. Situs sudah diperbarui."
+          else
+            echo "cPanel tidak melaporkan sukses — lihat pesan di atas."
+            echo "Sementara itu, tarik manual lewat cPanel -> Git Version Control -> Update from Remote."
+            exit 1
+          fi

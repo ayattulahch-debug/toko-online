@@ -154,13 +154,43 @@ Alurnya otomatis:
 ```
 git push (main)
    └─ GitHub Actions: npm ci → npm run build → rakit branch `deploy` → push
-        └─ cPanel → Git™ Version Control → klik "Update from Remote"
+        └─ GitHub Actions memanggil API cPanel → cPanel menarik `deploy` sendiri
 ```
 
-`GITHUB_TOKEN` bawaan dipakai untuk mendorong branch `deploy`, jadi **tidak perlu menambah secret**.
+`GITHUB_TOKEN` bawaan dipakai untuk mendorong branch `deploy`, jadi **tidak perlu menambah secret**
+untuk bagian itu.
 
 Folder `uploads/` dan `api/config.php` sengaja tidak di-track Git, sehingga foto yang sudah diunggah
-dan kredensial database **aman** saat "Update from Remote". Jangan pernah menambahkan keduanya ke repo.
+dan kredensial database **aman** saat update. Jangan pernah menambahkan keduanya ke repo.
+
+### Deploy otomatis penuh (sekali saja)
+
+Tanpa langkah ini, tiap deploy masih perlu satu klik manual di
+cPanel → **Git™ Version Control** → **Update from Remote**. Supaya benar-benar otomatis, GitHub
+Actions perlu izin memanggil API cPanel. Caranya:
+
+1. Di cPanel buka **Security → Manage API Tokens**, tekan **Create**.
+   - Nama: `github-deploy`
+   - Jangan centang batasan apa pun, lalu **Create** dan **salin tokennya sekarang** — token
+     hanya ditampilkan sekali.
+2. Di GitHub buka repo → **Settings → Secrets and variables → Actions → New repository secret**,
+   lalu isi empat secret berikut:
+
+   | Nama secret | Isi | Contoh |
+   |---|---|---|
+   | `CPANEL_HOST` | domain cPanel, tanpa `https://` | `plakatkaltim.com` |
+   | `CPANEL_USER` | username cPanel | `plakatka` |
+   | `CPANEL_TOKEN` | token dari langkah 1 | `ABCDEF...` |
+   | `CPANEL_REPO_ROOT` | folder repo di server | `/home/plakatka/public_html` |
+
+   Opsional: `CPANEL_PORT` kalau cPanel tidak memakai port HTTPS standar `2083`.
+
+3. Push apa pun ke `main`. Setelah build selesai, langkah terakhir workflow akan memanggil
+   `VersionControl/update` — sama persis dengan tombol **Update from Remote** — dan mencetak
+   jawaban cPanel di log.
+
+Selama keempat secret itu belum diisi, langkah tersebut dilewati tanpa menggagalkan workflow,
+jadi deploy lewat branch `deploy` tetap jalan dan bisa ditarik manual seperti sebelumnya.
 
 ## Gambar dan kuota hosting
 
@@ -195,7 +225,9 @@ Cloudinary.
 | Katalog gagal dimuat | Buka `https://domainmu.com/api/catalog.php`; kalau muncul pesan error, itu penyebabnya |
 | Login berhasil di lokal tapi gagal di hosting | Header `Authorization` tidak diteruskan — pastikan `.htaccess` ikut ter-upload |
 | Gambar tidak muncul setelah upload | Pastikan folder `public_html/uploads/produk` ada dan bisa ditulis (permission 755) |
-| Perubahan tidak muncul di cPanel | Klik **Update from Remote**, dan pastikan GitHub Actions selesai tanpa error |
+| Perubahan tidak muncul di situs | Cek log GitHub Actions. Kalau langkah "Suruh cPanel menarik branch deploy" dilewati, berarti secret cPanel belum diisi — tarik manual lewat **Update from Remote** |
+| Langkah cPanel gagal dengan "errors" berisi | Biasanya token salah/kedaluwarsa, `CPANEL_USER` tidak sama dengan pembuat token, atau `CPANEL_REPO_ROOT` keliru. Perbaiki secret-nya, atau tarik manual dulu supaya situs tetap terbarui |
+| Langkah cPanel gagal "tree kotor" | Ada berkas yang diubah langsung di server sehingga `git pull` menolak. Rapikan lewat cPanel → Git™ Version Control, atau batalkan perubahan berkas tersebut di File Manager |
 
 ## Batasan
 
