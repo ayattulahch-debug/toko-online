@@ -149,77 +149,41 @@ lewat koneksi tanpa enkripsi.
 git push          # ke branch main
 ```
 
-Alurnya otomatis:
+Alurnya:
 
 ```
 git push (main)
    └─ GitHub Actions: npm ci → npm run build → rakit branch `deploy` → push
-        └─ GitHub Actions memanggil API cPanel → cPanel menarik `deploy` sendiri
+        └─ cPanel → Git™ Version Control → klik "Update from Remote"
 ```
 
-`GITHUB_TOKEN` bawaan dipakai untuk mendorong branch `deploy`, jadi **tidak perlu menambah secret**
-untuk bagian itu.
+`GITHUB_TOKEN` bawaan dipakai untuk mendorong branch `deploy`, jadi **tidak perlu menambah secret**.
 
 Folder `uploads/` dan `api/config.php` sengaja tidak di-track Git, sehingga foto yang sudah diunggah
 dan kredensial database **aman** saat update. Jangan pernah menambahkan keduanya ke repo.
 
-### Deploy otomatis penuh (sekali saja)
+### Kenapa langkah terakhir masih manual?
 
-Tanpa langkah ini, tiap deploy masih perlu satu klik manual di
-cPanel → **Git™ Version Control** → **Update from Remote**. Supaya benar-benar otomatis, GitHub
-Actions perlu izin memanggil API cPanel. Caranya:
+Sempat dicoba dibuat otomatis: GitHub Actions memanggil API cPanel
+(`VersionControl/update`, sama dengan tombol **Update from Remote**) memakai API token. Cara ini
+**tidak berhasil** — firewall hosting menolak koneksi dari server GitHub ke port `2083`, sehingga
+permintaannya selalu timeout.
 
-1. Di cPanel buka **Security → Manage API Tokens**, tekan **Create**.
-   - Nama: `github-deploy`
-   - Jangan centang batasan apa pun, lalu **Create** dan **salin tokennya sekarang** — token
-     hanya ditampilkan sekali.
-   - **Jangan pernah menempelkan token ini ke chat, issue, atau berkas mana pun.** Nilainya hanya
-     boleh masuk ke GitHub Secrets. Kalau terlanjur bocor, langsung **Revoke** di halaman yang sama
-     lalu buat ulang.
-2. Di GitHub buka repo → **Settings → Secrets and variables → Actions → New repository secret**,
-   lalu isi empat secret berikut:
+Yang penting dipahami: ini **bukan** soal salah token, salah username, atau salah hostname. Port
+`2083` terbuka normal dari jaringan lain (termasuk dari browser biasa) — kebijakan firewall
+Zenhosta saja yang memblokir rentang IP GitHub. Karena tidak bisa diperbaiki dari sisi kode,
+langkah otomatis itu **dihapus dari workflow** supaya tidak memunculkan error merah yang
+menyesatkan di setiap push.
 
-   | Nama secret | Isi | Contoh |
-   |---|---|---|
-   | `CPANEL_HOST` | hostname server, tanpa `https://` | `nirvaya.zenhosta.com` |
-   | `CPANEL_USER` | username cPanel | `plakatka` |
-   | `CPANEL_TOKEN` | token dari langkah 1 | `ABCDEF...` |
-   | `CPANEL_REPO_ROOT` | folder repo di server | `/home/plakatka/public_html` |
+Kalau nanti ingin benar-benar otomatis, jalur yang tidak butuh koneksi masuk sama sekali adalah
+**Cron Job di cPanel** yang menjalankan `git pull` di folder repo secara berkala — servernya sendiri
+yang menarik perubahan, jadi tidak ada yang perlu diizinkan firewall.
 
-   Opsional: `CPANEL_PORT` kalau cPanel tidak memakai port HTTPS standar `2083`.
+### Kalau AutoSSL belum dijalankan
 
-3. Push apa pun ke `main`. Setelah build selesai, langkah terakhir workflow akan memanggil
-   `VersionControl/update` — sama persis dengan tombol **Update from Remote** — dan mencetak
-   jawaban cPanel di log.
-
-Selama keempat secret itu belum diisi, langkah tersebut dilewati tanpa menggagalkan workflow,
-jadi deploy lewat branch `deploy` tetap jalan dan bisa ditarik manual seperti sebelumnya.
-
-#### Soal `CPANEL_HOST`
-
-Isinya **bukan** domain situs dan **bukan** alamat IP, melainkan hostname server hosting. Ada dua
-syarat yang harus dipenuhi sekaligus:
-
-1. **Namanya bisa di-resolve dari internet.** GitHub Actions berjalan di server GitHub, bukan di
-   komputer ini. Perubahan berkas `hosts` di Windows hanya berlaku untuk komputer itu sendiri,
-   jadi tidak ada pengaruhnya di sini.
-2. **Sertifikat TLS-nya cocok dengan nama itu.** Saat menyambung ke `https://NAMA:2083`, `curl`
-   memeriksa apakah sertifikat server memuat `NAMA` tersebut. Kalau tidak, `curl` **menolak
-   melanjutkan** — berbeda dari browser yang masih menawarkan tombol "Lanjutkan saja". Alamat IP
-   tidak akan pernah cocok dengan sertifikat berbasis nama.
-
-Cara menemukan nilainya:
-
-- Lihat alamat di address bar browser saat cPanel terbuka, atau
-- cPanel → **Server Information** → **Hostname**, atau
-- reverse DNS dari IP server: `nslookup <IP-server>` (di server ini hasilnya `nirvaya.zenhosta.com`).
-
-Untuk memastikan dalam 10 detik: buka `https://nirvaya.zenhosta.com:2083`. Kalau halaman login
-cPanel muncul dengan gembok normal (tanpa peringatan "Tidak aman"), berarti namanya sudah benar.
-
-> Situs ini bisa diakses lewat `elaseracrylic.my.id`, tapi domain itu **belum bisa** dipakai sebagai
-> `CPANEL_HOST` selama sertifikatnya masih self-signed. Jalankan **AutoSSL** di cPanel
-> (**Security → SSL/TLS Status → Run AutoSSL**) lebih dulu, atau tetap pakai hostname server.
+Situs ini bisa diakses lewat `elaseracrylic.my.id`, tapi selama sertifikatnya masih self-signed,
+akses HTTPS ke domain itu akan memunculkan peringatan. Jalankan **Security → SSL/TLS Status →
+Run AutoSSL** di cPanel sekali saja.
 
 ## Gambar dan kuota hosting
 
@@ -254,11 +218,8 @@ Cloudinary.
 | Katalog gagal dimuat | Buka `https://domainmu.com/api/catalog.php`; kalau muncul pesan error, itu penyebabnya |
 | Login berhasil di lokal tapi gagal di hosting | Header `Authorization` tidak diteruskan — pastikan `.htaccess` ikut ter-upload |
 | Gambar tidak muncul setelah upload | Pastikan folder `public_html/uploads/produk` ada dan bisa ditulis (permission 755) |
-| Perubahan tidak muncul di situs | Cek log GitHub Actions. Kalau langkah "Suruh cPanel menarik branch deploy" dilewati, berarti secret cPanel belum diisi — tarik manual lewat **Update from Remote** |
-| Langkah cPanel gagal dengan "errors" berisi | Biasanya token salah/kedaluwarsa, `CPANEL_USER` tidak sama dengan pembuat token, atau `CPANEL_REPO_ROOT` keliru. Perbaiki secret-nya, atau tarik manual dulu supaya situs tetap terbarui |
-| Langkah cPanel gagal "tree kotor" | Ada berkas yang diubah langsung di server sehingga `git pull` menolak. Rapikan lewat cPanel → Git™ Version Control, atau batalkan perubahan berkas tersebut di File Manager |
-| Langkah cPanel gagal `Could not resolve host` | `CPANEL_HOST` tidak ada di DNS publik. Jangan pakai IP, dan jangan andalkan berkas `hosts` di komputer lokal — lihat bagian "Soal `CPANEL_HOST`" di atas |
-| Langkah cPanel gagal `SSL certificate problem` | Sertifikat untuk nama di `CPANEL_HOST` tidak valid atau self-signed. Pakai hostname server yang sertifikatnya valid, atau jalankan AutoSSL untuk domainnya lebih dulu |
+| Perubahan tidak muncul di situs | Pastikan GitHub Actions selesai tanpa error, lalu klik **Update from Remote** di cPanel → Git™ Version Control. Langkah itu memang masih manual |
+| `Update from Remote` gagal karena "tree kotor" | Ada berkas yang diubah langsung di server sehingga `git pull` menolak. Batalkan perubahan berkas tersebut lewat File Manager |
 
 ## Batasan
 
