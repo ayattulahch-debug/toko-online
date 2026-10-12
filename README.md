@@ -158,8 +158,16 @@ Alurnya:
 ```
 git push (main)
    └─ GitHub Actions: npm ci → npm run build → rakit branch `deploy` → push
-        └─ cPanel → Git™ Version Control → klik "Update from Remote"
+        └─ cPanel → Git™ Version Control → Manage → Pull or Deploy
+             ├─ klik "Update from Remote"   (tarik branch `deploy`)
+             └─ klik "Deploy HEAD Commit"   (salin ke public_html)
 ```
+
+Repository cPanel berada di `/home/plakatka/git/toko-online`, **bukan** di `public_html`. Karena itu
+branch `deploy` membawa `.cpanel.yml` (sumbernya `deploy/cpanel.yml`) yang menyalin `index.html`,
+`assets/`, `.htaccess`, dan `api/*.php` ke `public_html` saat **Deploy HEAD Commit** diklik.
+`api/config.php` dan `uploads/` tidak disentuh, sedangkan `install.php` dan `reset-admin.php` sengaja
+tidak ikut disalin. Pastikan **Checked-Out Branch** di cPanel adalah `deploy`, bukan `main`.
 
 `GITHUB_TOKEN` bawaan dipakai untuk mendorong branch `deploy`, jadi **tidak perlu menambah secret**.
 
