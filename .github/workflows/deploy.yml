@@ -66,6 +66,8 @@ jobs:
           mkdir -p api uploads/produk
           cp ../api/*.php api/
           touch uploads/produk/.gitkeep
+          # Perintah salin ke public_html untuk tombol "Deploy HEAD Commit" di cPanel.
+          cp ../deploy/cpanel.yml .cpanel.yml
 
       - name: Commit dan push
         run: |

@@ -1,0 +1,20 @@
+---
+# Disalin otomatis oleh GitHub Actions menjadi `.cpanel.yml` di branch `deploy`.
+#
+# Repository di cPanel tidak berada di public_html, jadi file hasil build perlu
+# disalin ke sana. cPanel menjalankan perintah di bawah saat tombol
+# "Deploy HEAD Commit" diklik (cPanel -> Git Version Control -> Manage ->
+# Pull or Deploy).
+#
+# Yang sengaja TIDAK disentuh:
+#   - api/config.php       kredensial database, dibuat manual di hosting
+#   - uploads/             foto produk yang diunggah dari panel admin
+#   - api/install.php,     skrip sekali pakai; berbahaya kalau dibiarkan
+#     api/reset-admin.php  di server, jadi tidak ikut disalin
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home/plakatka/public_html
+    - /bin/mkdir -p $DEPLOYPATH/api $DEPLOYPATH/assets $DEPLOYPATH/uploads/produk
+    - /bin/cp -f index.html favicon.svg .htaccess $DEPLOYPATH/
+    - /bin/cp -Rf assets/. $DEPLOYPATH/assets/
+    - /bin/find api -maxdepth 1 -name '*.php' ! -name install.php ! -name reset-admin.php -exec /bin/cp -f {} $DEPLOYPATH/api/ \;
