@@ -10,6 +10,7 @@ import {
   saveProduct,
   saveProductOrder,
   saveSettings,
+  setProductHidden,
   setToken,
 } from './api'
 import { AdminCategoryProductsView } from './components/AdminCategoryProductsView'
@@ -40,8 +41,8 @@ const NEW_PRODUCT: Product = {
 }
 
 export default function App() {
-  const { data, loading, error, reload } = useCatalog()
   const [token, setTokenState] = useState<string | null>(() => getToken())
+  const { data, loading, error, reload } = useCatalog(token !== null)
   const route = useRoute()
 
   const accentColor = data?.settings.accentColor ?? '#ee4d2d'
@@ -94,6 +95,11 @@ export default function App() {
     await reload()
   }
 
+  const handleToggleProductHidden = async (product: Product) => {
+    await setProductHidden(product.id, !product.hidden)
+    await reload()
+  }
+
   const handleReorderProducts = async (ids: number[]) => {
     await saveProductOrder(ids)
     await reload()
@@ -140,6 +146,11 @@ export default function App() {
     )
   }
 
+  // Halaman pengunjung hanya memakai produk yang tidak disembunyikan. Panel admin
+  // memakai `data.products` yang lengkap, supaya produk tersembunyi tetap bisa
+  // diedit dan dimunculkan lagi.
+  const visibleProducts = data.products.filter((product) => !product.hidden)
+
   const goToProduct = (product: Product) => navigate({ name: 'product', id: product.id })
 
   const goBackOrHome = () => {
@@ -170,7 +181,7 @@ export default function App() {
   const renderRoute = () => {
     switch (route.name) {
       case 'product': {
-        const product = data.products.find((item) => item.id === route.id)
+        const product = visibleProducts.find((item) => item.id === route.id)
         if (product === undefined) {
           return notFoundScreen('Produk tidak ditemukan', () => navigate({ name: 'home' }))
         }
@@ -187,7 +198,7 @@ export default function App() {
       case 'store':
         return (
           <StoreView
-            products={data.products}
+            products={visibleProducts}
             storeSettings={data.settings}
             categories={data.categories}
             isAdmin={isAdmin}
@@ -211,6 +222,7 @@ export default function App() {
             onAddProduct={() => navigate({ name: 'admin_product', id: 0 })}
             onEditProduct={(product) => navigate({ name: 'admin_product', id: product.id })}
             onDeleteProduct={handleDeleteProduct}
+            onToggleProductHidden={handleToggleProductHidden}
             onReorderProducts={handleReorderProducts}
             onNavigate={(target) => navigate(target)}
           />
@@ -294,7 +306,7 @@ export default function App() {
       default:
         return (
           <HomeView
-            products={data.products}
+            products={visibleProducts}
             storeSettings={data.settings}
             categories={data.categories}
             selectedCategoryId={route.name === 'category' ? route.id : null}

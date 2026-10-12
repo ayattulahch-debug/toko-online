@@ -1,5 +1,18 @@
 import { useState } from 'react'
-import { ChevronDown, ChevronLeft, ChevronUp, Edit3, Layout, Loader2, LogOut, Plus, Settings, Trash2 } from 'lucide-react'
+import {
+  ChevronDown,
+  ChevronLeft,
+  ChevronUp,
+  Edit3,
+  Eye,
+  EyeOff,
+  Layout,
+  Loader2,
+  LogOut,
+  Plus,
+  Settings,
+  Trash2,
+} from 'lucide-react'
 import type { Route } from '../lib/router'
 import type { Product } from '../types'
 import { formatRp } from '../utils'
@@ -12,6 +25,7 @@ interface AdminDashboardViewProps {
   onAddProduct: () => void
   onEditProduct: (product: Product) => void
   onDeleteProduct: (product: Product) => Promise<void>
+  onToggleProductHidden: (product: Product) => Promise<void>
   onReorderProducts: (ids: number[]) => Promise<void>
   onNavigate: (route: Route) => void
 }
@@ -22,11 +36,35 @@ export function AdminDashboardView({
   onAddProduct,
   onEditProduct,
   onDeleteProduct,
+  onToggleProductHidden,
   onReorderProducts,
   onNavigate,
 }: AdminDashboardViewProps) {
   const [tab, setTab] = useState<DashboardTab>('products')
   const [deletingId, setDeletingId] = useState<number | null>(null)
+  const [togglingId, setTogglingId] = useState<number | null>(null)
+
+  const hiddenCount = products.filter((product) => product.hidden).length
+  const visibleCount = products.length - hiddenCount
+
+  const handleToggleHidden = async (product: Product) => {
+    setTogglingId(product.id)
+    setError(null)
+
+    try {
+      await onToggleProductHidden(product)
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : product.hidden
+            ? 'Gagal menampilkan produk.'
+            : 'Gagal menyembunyikan produk.',
+      )
+    } finally {
+      setTogglingId(null)
+    }
+  }
   const [reordering, setReordering] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -55,7 +93,12 @@ export function AdminDashboardView({
   }
 
   const handleDelete = async (product: Product) => {
-    if (!window.confirm(`Hapus produk "${product.name}"? Tindakan ini tidak bisa dibatalkan.`)) {
+    if (
+      !window.confirm(
+        `Hapus produk "${product.name}"? Tindakan ini tidak bisa dibatalkan.\n\n` +
+          'Kalau hanya ingin menyembunyikan sementara, tekan Batal lalu pakai tombol mata.',
+      )
+    ) {
       return
     }
 
@@ -106,7 +149,10 @@ export function AdminDashboardView({
         {tab === 'products' && (
           <div className="space-y-3 pb-4">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-xs text-gray-500">{products.length} produk tampil di katalog.</p>
+              <p className="text-xs text-gray-500">
+                {visibleCount} produk tampil di katalog
+                {hiddenCount > 0 && `, ${hiddenCount} disembunyikan`}.
+              </p>
               <button
                 onClick={onAddProduct}
                 className="bg-green-500 text-white px-3 py-1.5 rounded-md text-xs font-bold flex items-center gap-1 shadow-sm active:bg-green-600"
@@ -122,22 +168,39 @@ export function AdminDashboardView({
             {products.map((p, index) => (
               <div
                 key={p.id}
-                className="bg-white p-3 rounded-md shadow-sm flex items-center gap-3 border border-gray-100"
+                className={`p-3 rounded-md shadow-sm flex items-center gap-2 border ${
+                  p.hidden ? 'bg-gray-100 border-dashed border-gray-300' : 'bg-white border-gray-100'
+                }`}
               >
-                {p.images[0] === undefined ? (
-                  <div className="w-16 h-16 rounded bg-gray-100 flex items-center justify-center text-[9px] text-gray-400">
-                    Tanpa foto
-                  </div>
-                ) : (
-                  <img
-                    src={p.images[0].thumbUrl}
-                    className="w-16 h-16 object-cover rounded"
-                    alt={`Foto ${p.name}`}
-                  />
-                )}
+                <div className={p.hidden ? 'opacity-40 grayscale' : ''}>
+                  {p.images[0] === undefined ? (
+                    <div className="w-16 h-16 rounded bg-gray-100 flex items-center justify-center text-[9px] text-gray-400">
+                      Tanpa foto
+                    </div>
+                  ) : (
+                    <img
+                      src={p.images[0].thumbUrl}
+                      className="w-16 h-16 object-cover rounded"
+                      alt={`Foto ${p.name}`}
+                    />
+                  )}
+                </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-xs font-bold text-gray-800 line-clamp-1">{p.name}</h3>
-                  <p className="text-[var(--accent)] text-xs font-semibold mt-1">{formatRp(p.price)}</p>
+                  <h3
+                    className={`text-xs font-bold line-clamp-1 ${p.hidden ? 'text-gray-500' : 'text-gray-800'}`}
+                  >
+                    {p.name}
+                  </h3>
+                  <p
+                    className={`text-xs font-semibold mt-1 ${p.hidden ? 'text-gray-400' : 'text-[var(--accent)]'}`}
+                  >
+                    {formatRp(p.price)}
+                  </p>
+                  {p.hidden && (
+                    <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-bold text-gray-600 bg-gray-200 rounded px-1.5 py-0.5">
+                      <EyeOff size={10} /> Disembunyikan
+                    </span>
+                  )}
                 </div>
                 <div className="flex flex-col">
                   <button
@@ -159,6 +222,26 @@ export function AdminDashboardView({
                     <ChevronDown size={14} />
                   </button>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => void handleToggleHidden(p)}
+                  disabled={togglingId === p.id}
+                  aria-label={p.hidden ? `Tampilkan lagi ${p.name}` : `Sembunyikan ${p.name}`}
+                  title={p.hidden ? 'Tampilkan lagi di katalog' : 'Sembunyikan sementara dari katalog'}
+                  className={`p-2 rounded-md disabled:opacity-50 ${
+                    p.hidden
+                      ? 'bg-green-50 text-green-600 active:bg-green-100'
+                      : 'bg-gray-100 text-gray-600 active:bg-gray-200'
+                  }`}
+                >
+                  {togglingId === p.id ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : p.hidden ? (
+                    <Eye size={16} />
+                  ) : (
+                    <EyeOff size={16} />
+                  )}
+                </button>
                 <button
                   onClick={() => onEditProduct(p)}
                   aria-label={`Edit produk ${p.name}`}

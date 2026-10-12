@@ -72,8 +72,10 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   return payload as T
 }
 
-export function fetchCatalog(): Promise<Catalog> {
-  return request<Catalog>('/catalog.php')
+// `includeHidden` dipakai saat admin login, supaya produk yang disembunyikan tetap
+// muncul di panel admin dan bisa ditampilkan lagi.
+export function fetchCatalog(includeHidden = false): Promise<Catalog> {
+  return request<Catalog>(includeHidden ? '/catalog.php?all=1' : '/catalog.php')
 }
 
 export function login(username: string, password: string): Promise<{ token: string }> {
@@ -103,6 +105,13 @@ export function saveProduct(product: Product): Promise<{ ok: boolean; id: number
 
 export function deleteProduct(id: number): Promise<{ ok: boolean }> {
   return request<{ ok: boolean }>(`/products.php?id=${id}`, { method: 'DELETE' })
+}
+
+export function setProductHidden(id: number, hidden: boolean): Promise<{ ok: boolean }> {
+  return request<{ ok: boolean }>('/product-visibility.php', {
+    method: 'POST',
+    body: JSON.stringify({ id, hidden }),
+  })
 }
 
 export function saveProductOrder(ids: number[]): Promise<{ ok: boolean }> {

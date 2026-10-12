@@ -11,6 +11,8 @@ Dibuat dengan **Vite + React + TypeScript + Tailwind CSS v4** di sisi tampilan, 
 - Filter cepat: Rekomendasi / Termurah / Premium
 - Detail produk: galeri foto, harga coret, rating, deskripsi, tombol chat WhatsApp
 - Halaman toko: banner, statistik, dan katalog produk
+- Sembunyikan produk sementara (tombol mata di panel admin): produk hilang dari tampilan
+  pengunjung tanpa dihapus, dan bisa dimunculkan lagi kapan saja dengan data yang utuh
 - Panel admin (login server-side): tambah / edit / hapus produk, kelola kategori beserta
   produk yang masuk ke dalamnya, atur nama toko, kedua banner, dan nomor WhatsApp,
   serta ganti password
@@ -40,7 +42,9 @@ api/                              backend PHP (dibaca langsung oleh cPanel, tida
   install.php                     instalasi sekali pakai (buat tabel + admin) — HAPUS setelah dipakai
   auth.php                        login, logout, ganti password
   catalog.php                     GET publik: produk + kategori + pengaturan
+                                  (?all=1 + login admin: ikut memuat produk tersembunyi)
   products.php                    tambah / edit / hapus produk
+  product-visibility.php          sembunyikan / tampilkan lagi satu produk
   categories.php                  simpan daftar kategori
   category-products.php           pilih produk mana saja yang masuk satu kategori
   settings.php                    simpan pengaturan toko

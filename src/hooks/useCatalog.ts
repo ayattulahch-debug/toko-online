@@ -12,6 +12,7 @@ function normalizeCatalog(catalog: Catalog): Catalog {
       ...product,
       variants: product.variants ?? [],
       categoryIds: product.categoryIds ?? [],
+      hidden: product.hidden ?? false,
     })),
     settings: {
       ...catalog.settings,
@@ -22,17 +23,19 @@ function normalizeCatalog(catalog: Catalog): Catalog {
   }
 }
 
-export function useCatalog() {
+// `includeHidden` bernilai true saat admin login: katalog lalu memuat juga
+// produk yang disembunyikan. Tampilan pengunjung tetap menyaringnya di App.
+export function useCatalog(includeHidden: boolean) {
   const [data, setData] = useState<Catalog | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Pemuatan awal: state hanya disentuh di dalam callback promise, bukan
-  // langsung di badan effect.
+  // Dimuat ulang setiap kali status login admin berubah. State hanya disentuh
+  // di dalam callback promise, bukan langsung di badan effect.
   useEffect(() => {
     let active = true
 
-    fetchCatalog()
+    fetchCatalog(includeHidden)
       .then((catalog) => {
         if (!active) return
         setData(normalizeCatalog(catalog))
@@ -49,20 +52,20 @@ export function useCatalog() {
     return () => {
       active = false
     }
-  }, [])
+  }, [includeHidden])
 
   // Dipakai setelah aksi admin dan oleh tombol "Coba Lagi".
   const reload = useCallback(async () => {
     setLoading(true)
     try {
-      setData(normalizeCatalog(await fetchCatalog()))
+      setData(normalizeCatalog(await fetchCatalog(includeHidden)))
       setError(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Gagal memuat katalog.')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [includeHidden])
 
   return { data, loading, error, reload }
 }

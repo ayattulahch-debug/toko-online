@@ -108,6 +108,11 @@ export function AdminCategoryProductsView({
               )}
               <div className="flex-1 min-w-0">
                 <h3 className="text-xs font-bold text-gray-800 line-clamp-1">{product.name}</h3>
+                {product.hidden && (
+                  <span className="inline-block mt-1 text-[10px] font-bold text-gray-600 bg-gray-200 rounded px-1.5 py-0.5">
+                    Disembunyikan
+                  </span>
+                )}
                 <p className="text-[var(--accent)] text-xs font-semibold mt-1">
                   {formatRp(product.price)}
                 </p>

@@ -20,6 +20,8 @@ export interface Product {
   description: string
   variants: ProductVariant[]
   categoryIds: number[]
+  /** true = disembunyikan sementara dari pengunjung. Hanya terisi di katalog admin. */
+  hidden?: boolean
 }
 
 export interface ProductForm extends Omit<Product, 'price' | 'originalPrice'> {

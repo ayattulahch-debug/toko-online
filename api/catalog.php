@@ -7,18 +7,24 @@ require_once __DIR__ . '/bootstrap.php';
 send_cors();
 require_method('GET');
 
+// Pengunjung hanya melihat produk aktif. Produk yang disembunyikan ikut dikirim
+// hanya kalau diminta (?all=1) DAN pemintanya admin yang sudah login. Token yang
+// kedaluwarsa tidak membuat katalog gagal; hasilnya cukup kembali ke versi publik.
+$includeHidden = isset($_GET['all']) && current_user() !== null;
+$activeFilter = $includeHidden ? '1 = 1' : 'p.is_active = 1';
+
 $productRows = db()->query(
-    'SELECT id, name, price, original_price, sold, location, rating, description
-     FROM products
-     WHERE is_active = 1
-     ORDER BY sort_order ASC, id ASC'
+    'SELECT p.id, p.name, p.price, p.original_price, p.sold, p.location, p.rating, p.description, p.is_active
+     FROM products p
+     WHERE ' . $activeFilter . '
+     ORDER BY p.sort_order ASC, p.id ASC'
 )->fetchAll();
 
 $imageRows = db()->query(
     'SELECT pi.product_id, pi.url, pi.thumb_url
      FROM product_images pi
      INNER JOIN products p ON p.id = pi.product_id
-     WHERE p.is_active = 1
+     WHERE ' . $activeFilter . '
      ORDER BY pi.product_id ASC, pi.sort_order ASC, pi.id ASC'
 )->fetchAll();
 
@@ -34,7 +40,7 @@ $variantRows = db()->query(
     'SELECT pv.product_id, pv.label, pv.price
      FROM product_variants pv
      INNER JOIN products p ON p.id = pv.product_id
-     WHERE p.is_active = 1
+     WHERE ' . $activeFilter . '
      ORDER BY pv.product_id ASC, pv.sort_order ASC, pv.id ASC'
 )->fetchAll();
 
@@ -50,7 +56,7 @@ $categoryRows = db()->query(
     'SELECT pc.product_id, pc.category_id
      FROM product_categories pc
      INNER JOIN products p ON p.id = pc.product_id
-     WHERE p.is_active = 1
+     WHERE ' . $activeFilter . '
      ORDER BY pc.product_id ASC, pc.category_id ASC'
 )->fetchAll();
 
@@ -74,6 +80,7 @@ foreach ($productRows as $row) {
         'images' => $imagesByProduct[$id] ?? [],
         'variants' => $variantsByProduct[$id] ?? [],
         'categoryIds' => $categoriesByProduct[$id] ?? [],
+        'hidden' => (int) $row['is_active'] !== 1,
     ];
 }
 
